@@ -7,56 +7,59 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define space ' '
-#define OUT 0
-#define IN 1
+#define REG_CHAR 1 // flag used for word count for non separator char
+#define SP_CHAR 0 // flag used for word count for separator char
 
+unsigned alphaCount(char *inLine);
+unsigned wordCount(char *inLine);
 void mkNull(char *s);
-unsigned alphaCount(char *str);
-void reverseOrder(char *str);
-unsigned wordCount(char *str);
+void output(unsigned words, unsigned alphas);
+void reverseOrder(char *inLine);
+unsigned charCheck(char *toCheck);
 
 int main(){
 	char input[40];
 	printf("enter string: \n");
 	fgets(input, 20, stdin);
-	printf("Word count: %u\n", wordCount(input));
-	printf("Letter count: %u\n", alphaCount(input));
+	output(wordCount(input),alphaCount(input));
 	reverseOrder(input);
 	return 0;
 }
 
-// initialize a string to the empty string
-void mkNull(char *s){ *s = '\0'; }
 
+void output(unsigned words, unsigned alphas){
+	printf("Word count: %u\n", words);
+	printf("Letter count: %u\n", alphas);
+}
 
-unsigned wordCount(char *str){
-	int state = OUT;
-	unsigned wc = 0;
-	unsigned aCount = 0;
-	while (*str) {
-		if ((*str == ' ')|| (*str == '\n')|| (*str == '\t')) // If next character is a separator, set the state as OUT
-			state = OUT;
-		else if (state == OUT) { // If next character is not a word separator and state is OUT, then set the state as IN and increment word count
-			state = IN;
-			++wc;
+unsigned wordCount(char *inLine){
+	int charType = SP_CHAR;
+	unsigned wordCount = 0;
+	while (*inLine) {
+		if(charCheck(inLine)) charType = SP_CHAR; // set separator flag
+		else if (charType == SP_CHAR) { // only counts words after seeing separator
+			charType = REG_CHAR;
+			++wordCount;
 		}
-		++str;
+		++inLine;
 	}
-	return wc;
+	return wordCount;
 }
 
-unsigned alphaCount(char *str){
-	int state = OUT;
-	unsigned aCount = 0;
-	while (*str) {
-		if (isalpha(*str)) ++aCount;
-		++str;
+unsigned charCheck(char *toCheck){
+	return (*toCheck == ' ') || (*toCheck == '\n') || (*toCheck == '\t');
+}
+
+unsigned alphaCount(char *inLine){
+	unsigned alphaCnt = 0;
+	while (*inLine) {
+		if (isalpha(*inLine)) ++alphaCnt;
+		++inLine;
 	}
-	return aCount;
+	return alphaCnt;
 
 }
 
-void reverseOrder(char *str){
+void reverseOrder(char *inLine){
 	//printf("fun reverseOrder\n");
 }

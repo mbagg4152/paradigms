@@ -2,15 +2,14 @@
  * working with strings.
  * scanf is not appropriate for input, use fgets
  */
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define space ' '
 #define OUT 0
 #define IN 1
 
-void wordCount(char* inputStr);
 void mkNull(char *s);
 void alphaCount();
 void reverseOrder();
@@ -34,17 +33,6 @@ void mkNull(char *s){
 	*s = '\0';
 }
 
-void wordCount(char* inputStr){
-	int wordCount = 1;
-
-	for (int i = 0; strlen(inputStr); i++)
-		//if (strncmp(' ', (char)inputStr[i]) == 0) wordCount++;
-
-		printf("word count: %d\n", wordCount);
-
-
-}
-
 
 unsigned countWords(char *str){
 	int state = OUT;
@@ -54,7 +42,7 @@ unsigned countWords(char *str){
 	while (*str) {
 		// If next character is a separator, set the
 		// state as OUT
-		if (*str == ' ' || *str == '\n' || *str == '\t')
+		if ((*str == ' ')|| (*str == '\n')|| (*str == '\t'))
 			state = OUT;
 
 		// If next character is not a word separator and

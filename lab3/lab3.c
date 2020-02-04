@@ -5,8 +5,8 @@
  * ALGORITHM
  * ------------------------------
  * [EXTERN. DATA TABLE]
- * REG_CHAR		flag used for word count for non separator char
- * SP_CHAR 		flag used for word count for separator char
+ * SP_CHAR		flag used for word count for non separator char
+ * SAW_SP_CHAR 		flag used for word count for separator char
  * STR_LEN		initializer for array size, string lenth
  * STR_NUM		initializer for array size, string count
  */
@@ -17,94 +17,83 @@
 #include <string.h>
 
 #define A_LOW 'a'
-#define A_UP 'A'
 #define ALPHA_LEN 26
 #define NAME_LEN 25
-#define REG_CHAR 1
-#define SP_CHAR 0
+#define REG_CHAR 0
+#define SAW_SP_CHAR 0
+#define SP_CHAR 1
 #define STR_LEN 100
 #define STR_NUM 100
 #define Z_LOW 'z'
-#define Z_UP 'Z'
 
-
-
-
-unsigned alphaCount(char *inLine);
-unsigned charCheck(char *check);
+void alphaCount(char *inLine);
+unsigned isSpace(char *check);
 unsigned wordCount(char *inLine);
-void output(unsigned words, unsigned alphas);
+void output(unsigned words);
 void reverseOrder(char *inLine);
 
 int main(){
 	char input[STR_LEN];
 	printf("enter string: \n");
 	fgets(input, STR_LEN, stdin);
-	output(wordCount(input), alphaCount(input));
+	output(wordCount(input));
+	alphaCount(input);
 	reverseOrder(input);
+	printf("\n");
 	return 0;
 }
 
-void output(unsigned words, unsigned alphas){
+void output(unsigned words){
 	printf("Word count: %u\n", words);
-	printf("Number of letters seen: %u\n", alphas);
 }
 
+
+
+
+/* PARAM inLine: string recieved from file/input
+ * VAR charTypeFlag: used to keep track of whether a character
+ * is a space or separator
+ */
 unsigned wordCount(char *inLine){
-	int charType = SP_CHAR;
+	int charTypeFlag = REG_CHAR;
+	char words[STR_NUM][STR_LEN];
 	unsigned wordCount = 0;
 	while (*inLine) {
-		if(charCheck(inLine)) charType = SP_CHAR; // set separator flag
-		else if (charType == SP_CHAR) { // only counts words after seeing separator
-			charType = REG_CHAR;
+		// set flag after seeing separator
+		if(isSpace(inLine) == SP_CHAR) charTypeFlag = SAW_SP_CHAR;
+		// only increment word counter after seeing separator
+		else if (charTypeFlag == SAW_SP_CHAR) {
+			charTypeFlag = SP_CHAR;
 			++wordCount;
 		}
 		++inLine;
 	}
 	return wordCount;
 }
-unsigned charCheck(char *check) {
+
+unsigned isSpace(char *check) {
 	return (*check == ' ') || (*check == '\n') || (*check == '\t') || (*check == '\r');
 }
 
-unsigned alphaCount(char *inLine){
-	unsigned alphaCnt = 0;
+void alphaCount(char *inLine){
 	int pos = 0;
-	int alphaTally[ALPHA_LEN] = {0}, tallyTotal[ALPHA_LEN] = {0};
-
+	int alphaTally[ALPHA_LEN] = {0};
 	while (inLine[pos] != '\0') {
 		if (isalpha(*inLine)) {
-			++alphaCnt;
-			char t = inLine[pos];
-			if (((*t).tolower() >= A_LOW) && ((*t).tolower() <=Z_LOW)) {
-				int tmp = inLine[pos] - A_LOW;
-				//printf("lower if-else - alphaTally & tallyTotal before ++: %d, %d\n", alphaTally[tmp], tallyTotal[tmp]);
+			if ((tolower(inLine[pos]) >= A_LOW) && (tolower(inLine[pos]) <= Z_LOW)) {
+				int tmp = tolower(inLine[pos]) - A_LOW;
 				++alphaTally[tmp];
-				++tallyTotal[tmp];
 			}
-			// else if((inLine[pos] >= A_UP) && (inLine[pos]<=Z_UP)) {
-			// 	int tmp = inLine[pos] - A_UP;
-			// 	//printf("upper if-else - alphaTally & tallyTotal before ++: %d, %d\n", alphaTally[tmp], tallyTotal[tmp]);
-			// 	++alphaTally[tmp];
-			// 	++tallyTotal[tmp];
-			// }
 		}
-
-		++inLine;
+		pos++;
 	}
 
-	printf("Outputting letters and appearance rate as (letter, count)\n" );
-
-	for (int i = 0; i< ALPHA_LEN; i++) {
-		if(tallyTotal[i]!=0)
-			printf("(%c, %d)  ", i + A_LOW, tallyTotal[i]);
+	printf("Outputting letters and appearance rate as [letter, count]\n" );
+	for (int i = 0; i < ALPHA_LEN; i++) {
+		if(alphaTally[i] != 0)
+			printf("[%c,%d] ", i + A_LOW, alphaTally[i]);
 	}
 	printf("\n" );
-
-
-
-
-	return alphaCnt;
 }
 
 void reverseOrder(char *inLine){
@@ -113,13 +102,15 @@ void reverseOrder(char *inLine){
 	token = strtok(inLine, " ");
 	int c = 0;
 	while(token != NULL) {
-		//	printf("adding: %s\n", token);
-		//strcpy(token, words[c]);
+		//	printf(" %s ", token);
 		strcpy(words[c], token);
-		token = strtok(NULL, " ");
-		++c;
-	}
 
+		token = strtok(NULL, " ");
+		c++;
+	}
+//	printf("\n");
+	for(int i = c-1; i >= 0; i--)
+		if(isSpace(words[i]) != SP_CHAR) printf("\nval: %s, index: %d ", words[i], i);
 
 
 

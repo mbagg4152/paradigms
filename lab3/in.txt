@@ -1,5 +1,2 @@
-line1word1 line1wTwo L1Wthree loneword3
-line2word1 line2wTwo L2Wthree
-line3word1 line3wTwo L3Wthree
-line4word1 line4wTwo L4Wthree
-line5word1 line5wTwo L5Wthree
+uno1 dos2 tres3 quatro4 cinco5
+one1 two2 three3 four4 five5 

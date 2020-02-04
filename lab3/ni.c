@@ -74,8 +74,6 @@ int main(){
 
 		int c = 0;
 		while (string[c] != '\0') {
-			/** Considering characters from 'a' to 'z' only and ignoring others. */
-
 			if ((string[c] >= 'a') && (string[c] <= 'z') ) {
 				int x = string[c] - 'a';
 				count[x]++;

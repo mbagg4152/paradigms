@@ -6,18 +6,18 @@
  * get input from keyboard (or file)
  * if no input errors -->
  * from last line to first:
- * 		if lines have value -->
- * 				display line number
- * 				find & display word count
- * 				find & display letter occurance
- * 				display original string & reversed string
+ *              if lines have value -->
+ *                              display line number
+ *                              find & display word count
+ *                              find & display letter occurance
+ *                              display original string & reversed string
  *
  * ------------------------------
  * [EXTERNAL DATA TABLE]
  * NAME				VAL
  * AB_LEN			size of the alphabet
- * TRUE	 			value in C is true if nonzero
- * FALSE   		value in C is false if zero
+ * TRUE	                        value in C is true if nonzero
+ * FALSE                value in C is false if zero
  * STR_LEN		initializer for array size, string lenth
  * STR_NUM		initializer for array size, string count
  */

@@ -1,0 +1,5 @@
+[Run in root dir]
+
+gcc -o out/comp.out compare.c
+gcc -o out/lex.out lex.c
+gcc -o out/spell.out spellCheck.c

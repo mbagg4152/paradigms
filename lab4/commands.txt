@@ -3,3 +3,5 @@
 gcc -o out/comp.out compare.c
 gcc -o out/lex.out lex.c
 gcc -o out/spell.out spellCheck.c
+
+./out/lex.out "/mnt/c/Users/maggs/Documents/GitHub/paradigms/lab4/text/test.txt"

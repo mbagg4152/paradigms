@@ -38,26 +38,29 @@ void fileTest(char *inName, char *dName) {
     rewind(dFile);
     char *dLines = (char *) malloc(fSize);
     int lineCount = 0;
+    int n = 0;
     for (int c = getc(dFile); c != EOF; c = getc(dFile)) {
+        dLines[n] = c;
+        n++;
         if (c == '\n') lineCount++;
     }
+
+
+    //printf("%s\n", dLines);
     printf("%d lines in file\n", lineCount);
     printf("file size %ld \n", fSize);
-    float avg = (float) fSize / (float) lineCount;
-    printf("avg word length: %f", avg);
-
-//    while (fgets((char *) (intptr_t) dLines[index], L, dFile)) {
-//        char **tmpStr = (char **) (intptr_t) dLines[index];
-//        for (int c = 0; c < strlen(*tmpStr); c++) {
-//            if (isupper(*tmpStr[c])) { *tmpStr[c] = (tolower(*tmpStr[c])); }
-//        }
-//
-//        index++;
-//    }
-//
-//    for (int pos = 0; pos < index; pos++) {
-//        printf("%c ", dLines[pos]);
-//    }
+    int avg = (int) fSize / lineCount;
+    printf("avg word length: %i\n", avg);
+    char *p = strtok(dLines, "\n");
+    char *arr[lineCount];
+    int i = 0;
+    while (p != NULL) {
+        arr[i++] = p;
+        p = strtok(NULL, "\n");
+    }
+    for (i = 0; i < lineCount; i++) {
+        printf("%s\n", arr[i]);
+    }
     printf("\n");
     fclose(dFile);
 }

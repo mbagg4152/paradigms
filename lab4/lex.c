@@ -3,36 +3,45 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LEN 200
-#define LINES 200
+void processFile(char *fName);
+void quit(char *message, int code);
 
 int main(int argc, char *argv[]) {
-    if ((argc > 2) || (argc < 2)) {
-        printf("incorrect arg count. usage: ./l <file_name>.txt\n");
-        exit(0);
-    }
-
+    if ((argc > 2) || (argc < 2)) { quit("incorrect arg count. usage: ./l <file_name>.txt", 0); }
     char *fileName = argv[1];
-    FILE *inputFile = fopen(fileName, "r");
-    if (inputFile == NULL) {
-        printf("cant open");
-        exit(0);
-    }
-
-    char fileLines[LEN][LINES];
-    int index = 0;
-    while (fgets(fileLines[index], LINES, inputFile)) {
-        char *tmpStr = fileLines[index];
-        for (int c = 0; c < strlen((const char *) tmpStr); c++) {
-            if (isupper(tmpStr[c])) { tmpStr[c] = tolower(tmpStr[c]); }
-        }
-        fileLines[index][strlen(fileLines[index]) - 1] = '\0';
-        index++;
-    }
-
-    for (int pos = 0; pos < index; pos++) {
-        printf("%s\n", fileLines[pos]);
-    }
+    processFile(fileName);
     return 0;
 }
+
+void processFile(char *fName) {
+    FILE *file = fopen(fName, "r");
+    if (file == NULL) { quit("error opening file(s)", 0); }
+    fseek(file, 0, SEEK_END);
+    long fSize = ftell(file);
+    rewind(file);
+    char *lines = (char *) malloc(fSize);
+    int lineCount = 0, counter = 0;
+    for (int ch = getc(file); ch != EOF; ch = getc(file)) {
+        if (isupper(ch)) ch = tolower(ch);
+        if (ch == '\n') { lineCount++; }
+        lines[counter] = ch;
+        counter++;
+    }
+
+    char *delim = "\n", *tokenized = strtok(lines, delim);
+    char *lineArr[lineCount];
+    int pos = 0;
+    while (tokenized != NULL) {
+        lineArr[pos++] = tokenized;
+        tokenized = strtok(NULL, delim);
+    }
+    for (pos = 0; pos < lineCount; pos++) printf("%s\n", lineArr[pos]);
+    fclose(file);
+}
+
+void quit(char *message, int code) {
+    printf("%s\n", message);
+    exit(code);
+}
+
 

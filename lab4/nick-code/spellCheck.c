@@ -1,108 +1,174 @@
-#include <unistd.h>
-#include <stdio.h>
-#include <wait.h>
-#include <stdlib.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<sys/wait.h>
+#include<ctype.h>
+#include<signal.h>
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmain-return-type"
-#define lex "./l"
-#define comp "./c"
+int counter;
+int pids[4];
+char *names[4];
+FILE *sLog;
 
-void spellCheck(char *file, char *dictionary);
-void compareOut(int *pipe, char *dictionary);
-void uniq(int *in, int *out);
-void sort(int *in, int *out);
-void lexOut(int *pipe, char *file);
-void makeLog(int lexPid, int sortPid, int uniqPid, int compPid);
+void handler(int, siginfo_t *, void *);
 
-void main(int argc, char *argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "Call spellCheck.c like this >>> ./spellCheck (input file).txt dict.txt\n");
-        exit(1);
+/*
+main is the controlling funtion of the program. Main will create a series of children
+and pipes to check the spelling in a specified file. The main will create children
+that will execute lex.out, sort, uniq and compare.out, piping the output from each to
+the input of the next.
+DATA TABLE
+NAME			DESCRIPTION
+argc			parameter - length of argv
+argv			parameter - arguments passed to the process
+fdls			pipe from lex.out to sort
+fdsu			pipe from sort to uniq
+fduc			pipe from uniq to compare.out
+lexArgs			the arguments passed to lex.out
+sortArgs		the arguments passed to sort
+uniqArgs		the arguments passed to uniq
+compareArgs		the arguments passed to compare
+*/
+
+int main(int argc, char *argv[]) {
+    //kill the process if there aren't 3 args
+    if (argc < 3) {
+        printf("I need a text file AND a dictionary\n");
+        return 0;
     }
-    spellCheck(argv[1], argv[2]);
-}
+    //add the names of the processes
+    names[0] = "lex.out";
+    names[1] = "sort";
+    names[2] = "uniq";
+    names[3] = "compare.out";
 
-void spellCheck(char *file, char *dictionary) {
-    pid_t lexPid = -1, sortPid = -1, uniqPid = -1, compPid = -1;
-    int lexSortPipe[2], sortUniqPipe[2], uniqCompPipe[2];
+    int fdls[2];
+    int fdsu[2];
+    int fduc[2];
 
-    pipe(lexSortPipe);
-    lexPid = fork();
-    if (lexPid == 0) {
-        lexOut(lexSortPipe, file);
-        return;
+    char *lexArgs[3];
+    lexArgs[0] = "./lex.out";
+    lexArgs[1] = argv[1];
+    lexArgs[2] = NULL;
+
+    char *sortArgs[2];
+    sortArgs[0] = "sort";
+    sortArgs[1] = NULL;
+
+    char *uniqArgs[3];
+    uniqArgs[0] = "uniq";
+    uniqArgs[1] = "-i";
+    uniqArgs[2] = NULL;
+
+    char *compArgs[3];
+    compArgs[0] = "./compare.out";
+    compArgs[1] = argv[2];
+    compArgs[2] = NULL;
+
+    //define our signal action
+    struct sigaction sigact;
+
+    sigact.sa_sigaction = handler;
+    sigact.sa_flags = SA_SIGINFO;
+    sigfillset(&sigact.sa_mask);
+    sigdelset(&sigact.sa_mask, SIGCHLD);
+    sigaction(SIGCHLD, &sigact, NULL);
+
+    counter = 0;
+    sLog = fopen("spellCheck.log", "w");
+    //create the first child
+    pipe(fdls);
+    if ((pids[0] = fork()) == 0) {
+        //put stdout into the pipe
+        dup2(fdls[1], STDOUT_FILENO);
+        //close the pipes
+        close(fdls[0]);
+        close(fdls[1]);
+        execvp(lexArgs[0], lexArgs);
     }
-    close(lexSortPipe[1]); // NEEDS TO CLOSE HERE
-    waitpid(lexPid, NULL, 0);
-    pipe(sortUniqPipe);
-    sortPid = fork();
-    if (sortPid == 0) {
-        sort(lexSortPipe, sortUniqPipe);
-        return;
+
+    pipe(fdsu);
+    if ((pids[1] = fork()) == 0) {
+        close(fdls[1]);
+        //put the data from lex.out into stdin
+        dup2(fdls[0], STDIN_FILENO);
+        close(fdls[0]);
+        close(fdsu[0]);
+        dup2(fdsu[1], STDOUT_FILENO);
+        close(fdsu[1]);
+        execvp(sortArgs[0], sortArgs);
     }
-    close(sortUniqPipe[1]);
-    waitpid(sortPid, NULL, 0);
-    pipe(uniqCompPipe);
-    uniqPid = fork();
-    if (uniqPid == 0) {
-        uniq(sortUniqPipe, uniqCompPipe);
-        return;
+    //the pipe is no longer necessary, so close it
+    close(fdls[0]);
+    close(fdls[1]);
+
+    pipe(fduc);
+    if ((pids[2] = fork()) == 0) {
+        close(fdsu[1]);
+        dup2(fdsu[0], STDIN_FILENO);
+        close(fdsu[0]);
+
+        close(fduc[0]);
+        dup2(fduc[1], STDOUT_FILENO);
+        close(fduc[1]);
+        execvp(uniqArgs[0], uniqArgs);
+
     }
-    close(uniqCompPipe[1]);
-    waitpid(uniqPid, NULL, 0);
-    compPid = fork();
-    if (compPid == 0) {
-        compareOut(uniqCompPipe, dictionary);
-        return;
+    close(fdsu[0]);
+    close(fdsu[1]);
+
+    if ((pids[3] = fork()) == 0) {
+        close(fduc[1]);
+        dup2(fduc[0], STDIN_FILENO);
+        close(fduc[0]);
+        execvp(compArgs[0], compArgs);
     }
-    waitpid(compPid, NULL, 0);
-    close(lexSortPipe[0]);
-    close(sortUniqPipe[0]);
-    close(uniqCompPipe[0]);
-    makeLog(lexPid, sortPid, uniqPid, compPid);
+
+    close(fduc[0]);
+    close(fduc[1]);
+    //while the number of process that have died is less than 0
+    //keep the parent in an infinite loop
+    while (counter < 4);
+
+    fclose(sLog);
 }
 
-void compareOut(int *pipe, char *dictionary) {
-    dup2(pipe[0], STDIN_FILENO);
-    char *args[3] = {comp, dictionary, NULL};
-    execv(args[0], args);
-    close(pipe[0]);
-}
-
-void uniq(int *in, int *out) {
-    dup2(in[0], STDIN_FILENO);
-    dup2(out[1], STDOUT_FILENO);
-    char *args[3] = {"uniq", "-i", NULL};
-    execvp(args[0], args);
-    close(in[0]);
-    close(out[1]);
-    close(out[0]); // Read end of pipe
-}
-
-void sort(int *in, int *out) {
-    dup2(in[0], STDIN_FILENO);
-    dup2(out[1], STDOUT_FILENO);
-    char *args[3] = {"sort", "-f", NULL};
-    execvp(args[0], args);
-    close(in[0]);
-    close(out[1]);
-    close(out[0]); // Read end of pipe
-}
-
-void lexOut(int *pipe, char *file) {
-    dup2(pipe[1], STDOUT_FILENO);
-    char *args[3] = {lex, file, NULL};
-    execv(args[0], args);
-    close(pipe[1]);
-    close(pipe[0]); // Read end of pipe
-}
-
-void makeLog(int lexPid, int sortPid, int uniqPid, int compPid) {
-    FILE *file = fopen("spellCheck.log", "w");  //open log in write
-    fprintf(file, "lex.out pid: %d\n", lexPid); //mode
-    fprintf(file, "sort pid: %d\n", sortPid);
-    fprintf(file, "uniq pid: %d\n", uniqPid);
-    fprintf(file, "compare.out pid: %d\n", compPid);
-    fclose(file);
+/*
+handler deals with signals that occur, specifically SIGCHLD. If a child
+dies, write its name and id to a file, and increment the number of dead children
+DATA TABLE
+NAME			DESCRIPTION
+pid			the pid of the dead process
+status			the status of the process
+selector		a position in both the names and pids arrays
+line			the line that will be written to the file
+*/
+void handler(int signum, siginfo_t *si, void *ucontext) {
+    pid_t pid;
+    int status;
+    int selector;
+    char line[256];
+    //if the signal is that of SIGCHLD, evaluate
+    if (signum == SIGCHLD) {
+        //while there are still dead children
+        while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+            //compare the pid of the dead child to the ones in pids
+            //set selecto to that position
+            if (pid == pids[0]) {
+                selector = 0;
+            } else if (pid == pids[1]) {
+                selector = 1;
+            } else if (pid == pids[2]) {
+                selector = 2;
+            } else if (pid == pids[3]) {
+                selector = 3;
+            }
+            //write the name and process ID into line, print it to file
+            sprintf(line, "The process id:%d name:%s has died\n", pids[selector], names[selector]);
+            fputs(line, sLog);
+            //increment the number of dead children
+            counter++;
+        }
+    }
 }

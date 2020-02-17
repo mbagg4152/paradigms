@@ -1,85 +1,60 @@
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<ctype.h>
 
-FILE *openFile(char *fileName); // Function to open the requested file
-void printFile(FILE *inFile);   // Function that prints the file
-
-void main(int argc, char *argv[]) {
-    if (argc != 2)
-        // If there are more or less than two commands when calling the program
-    {
-        // Close the program and print an error
-        printf("Please use this command format >>> ./lex (file).txt\n");
-        return;
+/*
+charReplace will read through a string character by character until it reaches a null character.
+If it encounters a character that is not a non letter, it replaces it with a space.
+DATA TABLE
+NAME			DESCRIPTION
+string			the string to read through
+spot			a variable used to move the pointer
+*/
+void charReplace(char *string) {
+    int spot = 0;
+    while (*(string + spot) != '\0') {
+        //if the character isn't a letter, replace it with a space
+        if (!isalpha(*(string + spot))) {
+            *(string + spot) = ' ';
+        }
+        spot++;
     }
-    FILE *file = openFile(argv[1]);
-    // Sets the file to the file the user passed in
-    printFile(file); // Prints the file
-    fclose(file);    // Closes the file
 }
 
-FILE *openFile(char *fileName)
-// This function sets the program's
-// file to the file that the user
-// defined to the program
-
-// data table
-// NAME          | DESCRIPTION
-// fileName      | The file name that the user passed in
-// requestedFile | If the file was present, this is the file object
-
-{
-    FILE *requestedFile = fopen(fileName, "r");
-    // Sets requestedFile to the file that the user defined
-    if (requestedFile) // If the file is present
-    {
-        return requestedFile; // Return the found file
-    }
-    // If the file was not found
-    printf("Cannot find the requested file.\n"); // Print an error
-    exit(0);                                     // Exit the program
-}
-
-void printFile(FILE *inFile)
-// This function is used to print the file's
-// contents into the console
-
-// data table
-// NAME        | DESCRIPTION
-// inFile      | The file that the user defined
-// size        | The size of the line
-// line        | The current line of the file
-// wordPrinted | Boolean to check if the word was printed
-// length      | The length of the line
-// index       | The index for the length of the line
-
-{
-    size_t size;                          // Used to define the size of the line
-    char **line = malloc(sizeof(char *)); // Used to store the line
-    // Need to make double pointer because line holds an array of words
-    // which holds an array of characters
-    while (getline(line, &size, inFile) != -1) //  While the line exists
-    {
-        int wordPrinted = 0;          // The word has not been printed
-        int length = strlen(line[0]); // Sets the length of the line
-        for (int index = 0; index < length; index++)
-            // For every character in the line
-        {
-            if (isalpha(line[0][index]))
-                // If the character is part of the alphabet
-            {
-                printf("%c", line[0][index]); // Print the character
-                wordPrinted = 1;              // The word has been printed
-            }
-                // If the character is not part of the alphabet
-            else if (wordPrinted)
-                // If the word has been printed
-            {
-                printf("\n");    // Print a new line character
-                wordPrinted = 0; // The new word has not been printed
+/*
+main is the controlling function of lex.c, main will read a file line by line,
+remove the newline character, tokenize each line by the delimiter string,
+and then print each token.
+DATA TABLE
+NAME			DESCRIPTION
+argc			parameter - length of argv
+argv			parameter - list of arguments passed
+fp			file pointer for the file name provided by the arguments list
+line			current line of the file
+newLine			pointer for location of newline character
+strptr			pointer for location of each token
+*/
+int main(int argc, char *argv[]) {
+    FILE *fp;
+    char line[256];
+    //char * newLine;
+    char *strptr;
+    //attempt to open the file
+    if ((fp = fopen(argv[1], "r"))) {
+        //if the file exists, read until the end
+        while (fgets(line, 256, fp) != NULL) {
+            charReplace(line);
+            //tokenize the string based off the delimiter
+            //continue until there are no more tokens
+            strptr = strtok(line, " ");
+            while (strptr != NULL) {
+                printf("%s\n", strptr);
+                strptr = strtok(NULL, " ");
             }
         }
+        fclose(fp);
     }
+    return 0;
 }

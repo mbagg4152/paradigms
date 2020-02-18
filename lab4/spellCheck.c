@@ -21,24 +21,22 @@ void sortIt(int in[2], int out[2]);
 void checker(char *inFile, char *dictFile);
 void driver(char *inputName, char *dictName);
 void makeLog();
-void handler(int signum, siginfo_t *si, void *ucontext);
+void initValues();
+void handler(int sigID, siginfo_t *sigInfo, void *context);
 void initSigAction();
 
 int main(int argc, char *argv[]) {
     if ((argc > 3) || (argc < 3)) { quit("incorrect arg count. usage: ./s <file>.txt <dict>.txt", 0); }
-    printf("Note: The program keeps running, that's something I'm trying to work out. For now just use ctrl+C to exit.\n\n");
+    printf("Note: The program keeps running, that's something I'm trying to work out. For now just use ctrl+C to exit.\n");
     char *inFName = argv[1], *dFName = argv[2];
-    printf("input file: %s, dictionary: %s\n", inFName, dFName);
-    //checker(inFName, dFName);
+    printf("[DEBUG]input file: %s, dictionary: %s\n\n", inFName, dFName);
     driver(inFName, dFName);
 }
 
-void driver(char *inputName, char *dictName) {
+void initValues(char *inputName, char *dictName) {
     procs[0] = lexCmd;
     procs[1] = sortCmd;
     procs[2] = compCmd;
-    int ltsPipe[2]; // store ends of pipe from lex --> sort
-    int stcPipe[2]; // store ends of pipe from sort --> compare
     lexArgs[0] = lexCmd;
     lexArgs[1] = inputName;
     lexArgs[2] = NULL;
@@ -51,6 +49,14 @@ void driver(char *inputName, char *dictName) {
     pids[0] = lexPid;
     pids[1] = sortPid;
     pids[2] = compPid;
+
+}
+
+void driver(char *inputName, char *dictName) {
+    initValues(inputName, dictName);
+    int ltsPipe[2]; // store ends of pipe from lex --> sort
+    int stcPipe[2]; // store ends of pipe from sort --> compare
+
 
     initSigAction();
     counter = 0;
@@ -93,7 +99,7 @@ void driver(char *inputName, char *dictName) {
     kill(compPid, 0);
 
     while (counter < 3);
-
+    fclose(logFile);
 }
 
 void initSigAction() {
@@ -105,36 +111,25 @@ void initSigAction() {
     sigaction(SIGCHLD, &action, NULL);
 }
 
-void handler(int signum, siginfo_t *si, void *ucontext) {
-    pid_t pid;
-    int status;
-    int selector = 0;
-    char line[256];
-    //if the signal is that of SIGCHLD, evaluate
-    if (signum == SIGCHLD) {
-        printf("in the sighandler");
-        //while there are still dead children
-        while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-            //compare the pid of the dead child to the ones in pids
-            //set selecto to that position
-            if (pid == pids[0]) {
-                selector = 0;
-            } else if (pid == pids[1]) {
-                selector = 1;
-            } else if (pid == pids[2]) {
-                selector = 2;
-            }
-            //write the name and process ID into line, print it to file
-            sprintf(line, "The process id:%d name:%s has died\n", pids[selector], procs[selector]);
-            //fputs(line, sLog);
+//https://linux.die.net/man/2/signal
+void handler(int sigID, siginfo_t *sigInfo, void *context) {
+    pid_t current;
+    int status, selector = 0;
+    char output[256];
+    if (sigID == SIGCHLD) { //if the signal is that of SIGCHLD, evaluate
+        while ((current = waitpid(-1, &status, WNOHANG)) > 0) { //while there are still dead children
+            //compare the current of the dead child to the ones in pids
+            //set selector to that position
+            if (current == pids[0]) { selector = 0; }
+            else if (current == pids[1]) { selector = 1; }
+            else if (current == pids[2]) { selector = 2; }
+            //write the name and process ID into output, print it to file
+            sprintf(output, "The process id:%d name:%s has died\n", pids[selector], procs[selector]);
+            //fputs(output, sLog);
             //increment the number of dead children
             counter++;
         }
     }
-}
-
-void makeLog() {
-
 }
 
 void quit(char *message, int code) {

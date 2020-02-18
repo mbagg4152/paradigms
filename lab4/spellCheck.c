@@ -15,22 +15,54 @@ int deadCount;
 pid_t lexPid = -1, sortPid = -1, compPid = -1;
 FILE *logFile;
 
-void quit(char *message, int code);
-void lex(int pipe[2], char *file);
-void sortIt(int in[2], int out[2]);
-void checker(char *inFile, char *dictFile);
 void driver(char *inputName, char *dictName);
-void makeLog();
-void initValues();
-void handler(int sigID, siginfo_t *sigInfo, void *context);
+void initValues(char *inputName, char *dictName);
 void initSigAction();
+void handler(int sigID, siginfo_t *sigInfo, void *context);
+void runLex(int pipe[]);
+void runSort(int *in, int *out);
+void runCompare(int pipe[]);
+void quit(char *message, int code);
 
 int main(int argc, char *argv[]) {
     if ((argc > 3) || (argc < 3)) { quit("incorrect arg count. usage: ./s <file>.txt <dict>.txt", 0); }
-    printf("Note: The program keeps running, that's something I'm trying to work out. For now just use ctrl+C to exit.\n");
     char *inFName = argv[1], *dFName = argv[2];
     printf("[DEBUG]input file: %s, dictionary: %s\n\n", inFName, dFName);
     driver(inFName, dFName);
+}
+
+void driver(char *inputName, char *dictName) {
+    initValues(inputName, dictName);
+    int ltsPipe[2]; // store ends of pipe from lex --> sort
+    int stcPipe[2]; // store ends of pipe from sort --> compare
+    initSigAction();
+
+    deadCount = 0;
+    logFile = fopen("spellCheck.log", "w");
+
+    pipe(ltsPipe);
+    lexPid = fork(); // create child process for lex
+    pids[0] = lexPid;
+    if (lexPid == 0) runLex(ltsPipe); // pid of 0 ==> child process
+
+    pipe(stcPipe);
+    sortPid = fork(); // create child for sort
+    pids[1] = sortPid;
+    if (sortPid == 0) runSort(ltsPipe, stcPipe); // pid of 0 ==> child process
+
+    // lex --> sort no longer needed
+    close(ltsPipe[0]);
+    close(ltsPipe[1]);
+
+    compPid = fork(); // create child for compare
+    pids[2] = compPid;
+    if (compPid == 0) runCompare(stcPipe); // pid of 0 ==> child process
+
+    close(stcPipe[0]);
+    close(stcPipe[1]);
+
+    while (deadCount < 3); // run until the 3 child processes are dead
+    fclose(logFile);
 }
 
 void initValues(char *inputName, char *dictName) {
@@ -46,99 +78,61 @@ void initValues(char *inputName, char *dictName) {
     compArgs[0] = compCmd;
     compArgs[1] = dictName;
     compArgs[2] = NULL;
-    pids[0] = lexPid;
-    pids[1] = sortPid;
-    pids[2] = compPid;
 
-}
-
-void driver(char *inputName, char *dictName) {
-    initValues(inputName, dictName);
-    int ltsPipe[2]; // store ends of pipe from lex --> sort
-    int stcPipe[2]; // store ends of pipe from sort --> compare
-
-
-    initSigAction();
-    deadCount = 0;
-    logFile = fopen("spellCheck.log", "w");
-    pipe(ltsPipe);
-    pids[0] = fork(); // create child process for lex
-    if (pids[0] == 0) { // pid of 0 ==> child process
-        dup2(ltsPipe[1], STDOUT_FILENO);
-        close(ltsPipe[0]);
-        close(ltsPipe[1]);
-        execvp(lexArgs[0], lexArgs);
-    }
-
-    pipe(stcPipe);
-    pids[1] = fork();
-    if (pids[1] == 0) { // pid of 0 ==> child process
-        close(ltsPipe[1]);
-        dup2(ltsPipe[0], STDIN_FILENO);
-        close(ltsPipe[0]);
-        close(stcPipe[0]);
-        dup2(stcPipe[1], STDOUT_FILENO);
-        close(stcPipe[1]);
-        execvp(sortArgs[0], sortArgs);
-    }
-
-    // close pipe for non child process
-    close(ltsPipe[0]);
-    close(ltsPipe[1]);
-
-    pids[2] = fork();
-    if (pids[2] == 0) { // pid of 0 ==> child process
-        close(stcPipe[1]);
-        dup2(stcPipe[0], STDIN_FILENO);
-        close(stcPipe[0]);
-        execvp(compArgs[0], compArgs);
-    }
-
-    close(ltsPipe[0]);
-    close(stcPipe[0]);
-    kill(compPid, 0);
-
-    while (deadCount < 3);
-    fclose(logFile);
 }
 
 void initSigAction() {
     struct sigaction action;
     action.sa_sigaction = handler; // sa_sigaction requires (int, siginfo_t*, void*)
-    action.sa_flags = SA_SIGINFO; // int
-    sigfillset(&action.sa_mask);
-    sigdelset(&action.sa_mask, SIGCHLD);
-    sigaction(SIGCHLD, &action, NULL);
-
-//    DEFAULT  SIGACTION STRUCTURE
-//    struct sigaction {
-//        void     (*sa_handler)(int);
-//        void     (*sa_sigaction)(int, siginfo_t *, void *);
-//        sigset_t   sa_mask;
-//        int        sa_flags;
-//        void     (*sa_restorer)(void);
-//    };
+    action.sa_flags = SA_SIGINFO; // int, this flag is only meaningful when establishing a signal handler
+    sigfillset(&action.sa_mask); // init & fill signal set
+    sigdelset(&action.sa_mask, SIGCHLD); // delete SIGCHLD from signal set
+    sigaction(SIGCHLD, &action, NULL); // examine & change signal action
 }
 
 //https://linux.die.net/man/2/sigaction
 // needs to have the same signature as sa_sigaction
 void handler(int sigID, siginfo_t *sigInfo, void *context) {
     pid_t current;
-    int status, selector = 0;
-    char output[256];
-    if (sigID == SIGCHLD) { //if the signal is that of SIGCHLD, evaluate
-        while ((current = waitpid(-1, &status, WNOHANG)) > 0) { //while there are still dead children
-            //compare the current of the dead child to the ones in pids
-            //set selector to that position
-            if (current == pids[0]) { selector = 0; }
-            else if (current == pids[1]) { selector = 1; }
-            else if (current == pids[2]) { selector = 2; }
-            //write the name and process ID into output, print it to file
-            sprintf(output, "The process id:%d name:%s has died\n", pids[selector], procs[selector]);
-            fputs(output, logFile);
+    int status, pos = 0;
+    char logContent[400];
+    if (sigID == SIGCHLD) { // do something only if signal is SIGCHLD
+        // while there are still dead children, WNOHANG ensures waitpid returns status info immediately
+        while ((current = waitpid(-1, &status, WNOHANG)) > 0) {
+            // set pos based on value of current in order to have correct vals written to log
+            if (current == pids[0]) { pos = 0; }
+            else if (current == pids[1]) { pos = 1; }
+            else if (current == pids[2]) { pos = 2; }
+            // write process name & id to spellCheck.log
+            sprintf(logContent, "Process %s with id: %d has been put down\n", procs[pos], pids[pos]);
+            fputs(logContent, logFile);
             deadCount++;
         }
     }
+}
+
+void runLex(int pipe[]) {
+    dup2(pipe[1], STDOUT_FILENO);
+    close(pipe[0]);
+    close(pipe[1]);
+    execvp(lexArgs[0], lexArgs);
+}
+
+void runSort(int *in, int *out) {
+    close(in[1]);
+    dup2(in[0], STDIN_FILENO);
+    close(in[0]);
+    close(out[0]);
+    dup2(out[1], STDOUT_FILENO);
+    close(out[1]);
+    execvp(sortArgs[0], sortArgs);
+}
+
+void runCompare(int pipe[]) {
+    close(pipe[1]);
+    dup2(pipe[0], STDIN_FILENO);
+    close(pipe[0]);
+    execvp(compArgs[0], compArgs);
 }
 
 void quit(char *message, int code) {

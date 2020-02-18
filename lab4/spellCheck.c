@@ -105,10 +105,19 @@ void driver(char *inputName, char *dictName) {
 void initSigAction() {
     struct sigaction action;
     action.sa_sigaction = handler; // sa_sigaction requires (int, siginfo_t*, void*)
-    action.sa_flags = SA_SIGINFO;
+    action.sa_flags = SA_SIGINFO; // int
     sigfillset(&action.sa_mask);
     sigdelset(&action.sa_mask, SIGCHLD);
     sigaction(SIGCHLD, &action, NULL);
+
+//    DEFAULT  SIGACTION STRUCTURE
+//    struct sigaction {
+//        void     (*sa_handler)(int);
+//        void     (*sa_sigaction)(int, siginfo_t *, void *);
+//        sigset_t   sa_mask;
+//        int        sa_flags;
+//        void     (*sa_restorer)(void);
+//    };
 }
 
 //https://linux.die.net/man/2/sigaction

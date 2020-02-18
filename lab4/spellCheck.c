@@ -6,83 +6,135 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <fcntl.h>
+#include<signal.h>
 
-char *lexCmd = "./l";
+char *lexCmd = "./l", *compCmd = "./c", *sortCmd = "sort", *sortFlag = "-u";
+char *lexArgs[3], *sortArgs[3], *compArgs[3], *procs[3];
+int pids[3];
+int counter;
+pid_t lexPid = -1, sortPid = -1, compPid = -1;
+FILE *logFile;
 
 void quit(char *message, int code);
-
 void lex(int pipe[2], char *file);
-
 void sortIt(int in[2], int out[2]);
-
 void checker(char *inFile, char *dictFile);
+void driver(char *inputName, char *dictName);
+void makeLog();
+void handler(int signum, siginfo_t *si, void *ucontext);
+void initSigAction();
 
 int main(int argc, char *argv[]) {
     if ((argc > 3) || (argc < 3)) { quit("incorrect arg count. usage: ./s <file>.txt <dict>.txt", 0); }
+    printf("Note: The program keeps running, that's something I'm trying to work out. For now just use ctrl+C to exit.\n\n");
     char *inFName = argv[1], *dFName = argv[2];
     printf("input file: %s, dictionary: %s\n", inFName, dFName);
-    checker(inFName, dFName);
+    //checker(inFName, dFName);
+    driver(inFName, dFName);
 }
 
-void checker(char *inFile, char *dictFile) {
-    char lexOutput[4096], sortOutput[4096], compareOutput[4096];
-    int lexPid = -1, sortPid = -1, comparePid = -1;
-    int lexSortPipe[2], sortComparePipe[2];
+void driver(char *inputName, char *dictName) {
+    procs[0] = lexCmd;
+    procs[1] = sortCmd;
+    procs[2] = compCmd;
+    int ltsPipe[2]; // store ends of pipe from lex --> sort
+    int stcPipe[2]; // store ends of pipe from sort --> compare
+    lexArgs[0] = lexCmd;
+    lexArgs[1] = inputName;
+    lexArgs[2] = NULL;
+    sortArgs[0] = sortCmd;
+    sortArgs[1] = sortFlag;
+    sortArgs[2] = NULL;
+    compArgs[0] = compCmd;
+    compArgs[1] = dictName;
+    compArgs[2] = NULL;
+    pids[0] = lexPid;
+    pids[1] = sortPid;
+    pids[2] = compPid;
 
-    pipe(lexSortPipe);
-    lexPid = fork();
-    printf("lex pid: %d\n", lexPid);
-    if (lexPid == -1) {
-        quit("error in forking lex", 0);
-    } else if (lexPid == 0) {
-        lex(lexSortPipe, inFile);
-        return;
-    } else {
-        int nBytes = read(lexSortPipe[0], lexOutput, sizeof(lexOutput));
-        printf("Output of lex:\n%.*sEnd of lex output\n\n", nBytes, lexOutput);
-        wait(NULL);
+    initSigAction();
+    counter = 0;
+    logFile = fopen("spellCheck.log", "w");
+    pipe(ltsPipe);
+    pids[0] = fork(); // create child process for lex
+    if (pids[0] == 0) { // pid of 0 ==> child process
+        dup2(ltsPipe[1], STDOUT_FILENO);
+        close(ltsPipe[0]);
+        close(ltsPipe[1]);
+        execvp(lexArgs[0], lexArgs);
     }
-    close(lexSortPipe[1]);
-    waitpid(lexPid, NULL, 0);
 
-
-    pipe(sortComparePipe);
-    sortPid = fork();
-    printf("sort pid: %d\n", sortPid);
-    if (sortPid == -1) {
-        quit("error in forking sort.", 0);
-        exit(0);
-    } else if (sortPid == 0) {
-        sortIt(lexSortPipe, sortComparePipe);
-        return;
-    } else {
-        close(sortComparePipe[1]);
-        int data = read(sortComparePipe[0], sortOutput, sizeof(sortOutput));
-        printf("Sort output:\n%.*s\n", data, sortOutput);
-
+    pipe(stcPipe);
+    pids[1] = fork();
+    if (pids[1] == 0) { // pid of 0 ==> child process
+        close(ltsPipe[1]);
+        dup2(ltsPipe[0], STDIN_FILENO);
+        close(ltsPipe[0]);
+        close(stcPipe[0]);
+        dup2(stcPipe[1], STDOUT_FILENO);
+        close(stcPipe[1]);
+        execvp(sortArgs[0], sortArgs);
     }
-    close(sortComparePipe[1]);
-    waitpid(sortPid, NULL, 0);
+
+    // close pipe for non child process
+    close(ltsPipe[0]);
+    close(ltsPipe[1]);
+
+    pids[2] = fork();
+    if (pids[2] == 0) { // pid of 0 ==> child process
+        close(stcPipe[1]);
+        dup2(stcPipe[0], STDIN_FILENO);
+        close(stcPipe[0]);
+        execvp(compArgs[0], compArgs);
+    }
+
+    close(ltsPipe[0]);
+    close(stcPipe[0]);
+    kill(compPid, 0);
+
+    while (counter < 3);
 
 }
 
-void lex(int pipe[2], char *file) {
-    dup2(pipe[1], STDOUT_FILENO);
-    char *args[3] = {lexCmd, file, NULL};
-    execv(args[0], args);
-    close(pipe[1]);
-    close(pipe[0]); // Read end of pipe
+void initSigAction() {
+    struct sigaction action;
+    action.sa_sigaction = handler;
+    action.sa_flags = SA_SIGINFO;
+    sigfillset(&action.sa_mask);
+    sigdelset(&action.sa_mask, SIGCHLD);
+    sigaction(SIGCHLD, &action, NULL);
 }
 
-void sortIt(int in[2], int out[2]) {
-    dup2(in[0], STDIN_FILENO);
-    dup2(out[1], STDOUT_FILENO);
-    char *args[3] = {"sort", "-f", NULL};
-    execvp(args[0], args);
+void handler(int signum, siginfo_t *si, void *ucontext) {
+    pid_t pid;
+    int status;
+    int selector = 0;
+    char line[256];
+    //if the signal is that of SIGCHLD, evaluate
+    if (signum == SIGCHLD) {
+        printf("in the sighandler");
+        //while there are still dead children
+        while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+            //compare the pid of the dead child to the ones in pids
+            //set selecto to that position
+            if (pid == pids[0]) {
+                selector = 0;
+            } else if (pid == pids[1]) {
+                selector = 1;
+            } else if (pid == pids[2]) {
+                selector = 2;
+            }
+            //write the name and process ID into line, print it to file
+            sprintf(line, "The process id:%d name:%s has died\n", pids[selector], procs[selector]);
+            //fputs(line, sLog);
+            //increment the number of dead children
+            counter++;
+        }
+    }
+}
 
-    close(in[0]);
-    close(out[1]);
-    close(out[0]);
+void makeLog() {
+
 }
 
 void quit(char *message, int code) {

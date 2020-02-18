@@ -11,7 +11,7 @@
 char *lexCmd = "./l", *compCmd = "./c", *sortCmd = "sort", *sortFlag = "-u";
 char *lexArgs[3], *sortArgs[3], *compArgs[3], *procs[3];
 int pids[3];
-int counter;
+int deadCount;
 pid_t lexPid = -1, sortPid = -1, compPid = -1;
 FILE *logFile;
 
@@ -59,7 +59,7 @@ void driver(char *inputName, char *dictName) {
 
 
     initSigAction();
-    counter = 0;
+    deadCount = 0;
     logFile = fopen("spellCheck.log", "w");
     pipe(ltsPipe);
     pids[0] = fork(); // create child process for lex
@@ -98,7 +98,7 @@ void driver(char *inputName, char *dictName) {
     close(stcPipe[0]);
     kill(compPid, 0);
 
-    while (counter < 3);
+    while (deadCount < 3);
     fclose(logFile);
 }
 
@@ -111,7 +111,7 @@ void initSigAction() {
     sigaction(SIGCHLD, &action, NULL);
 }
 
-//https://linux.die.net/man/2/signal
+//https://linux.die.net/man/2/sigaction
 void handler(int sigID, siginfo_t *sigInfo, void *context) {
     pid_t current;
     int status, selector = 0;
@@ -125,9 +125,8 @@ void handler(int sigID, siginfo_t *sigInfo, void *context) {
             else if (current == pids[2]) { selector = 2; }
             //write the name and process ID into output, print it to file
             sprintf(output, "The process id:%d name:%s has died\n", pids[selector], procs[selector]);
-            //fputs(output, sLog);
-            //increment the number of dead children
-            counter++;
+            fputs(output, logFile);
+            deadCount++;
         }
     }
 }

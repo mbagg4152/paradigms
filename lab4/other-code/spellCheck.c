@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include<signal.h>
 
-int counter;
+int deadCount;
 int pids[4];
 char *names[4];
 FILE *sLog;
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
     sigdelset(&sigact.sa_mask, SIGCHLD);
     sigaction(SIGCHLD, &sigact, NULL);
 
-    counter = 0;
+    deadCount = 0;
     sLog = fopen("spellCheck.log", "w");
     //create the first child
     pipe(fdls);
@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
     close(fduc[1]);
     //while the number of process that have died is less than 0
     //keep the parent in an infinite loop
-    while (counter < 4);
+    while (deadCount < 4);
 
     fclose(sLog);
 }
@@ -170,7 +170,7 @@ void handler(int signum, siginfo_t *si, void *ucontext) {
             sprintf(line, "The process id:%d name:%s has died\n", pids[selector], names[selector]);
             fputs(line, sLog);
             //increment the number of dead children
-            counter++;
+            deadCount++;
         }
     }
 }

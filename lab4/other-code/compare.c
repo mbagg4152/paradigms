@@ -9,7 +9,7 @@ lowerCase will go through a string and make every letter in a string lowercase.
 DATA TABLE
 NAME			DESCRIPTION
 word			parameter - the word which will be made lower case
-spot			counter used to increment the pointer
+spot			deadCount used to increment the pointer
 */
 void lowerCase(char *word) {
     int spot = 0;

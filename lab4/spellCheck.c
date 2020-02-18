@@ -1,14 +1,11 @@
-#include <unistd.h>
-#include <stdio.h>
-#include <wait.h>
-#include <ctype.h>
-#include <string.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <fcntl.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <wait.h>
 
-char *lexCmd = "./l", *compCmd = "./c", *sortCmd = "sort", *sortFlag = "-u";
+char *lexCmd = "./lex.out", *compCmd = "./compare.out", *sortCmd = "sort", *sortFlag = "-u";
 char *lexArgs[3], *sortArgs[3], *compArgs[3], *procs[3];
 int pids[3];
 int deadCount;
@@ -25,9 +22,9 @@ void runCompare(int pipe[]);
 void quit(char *message, int code);
 
 int main(int argc, char *argv[]) {
-    if ((argc > 3) || (argc < 3)) { quit("incorrect arg count. usage: ./s <file>.txt <dict>.txt", 0); }
+    if ((argc > 3) || (argc < 3)) { quit("incorrect arg count. usage: ./spellCheck.out <file>.txt <dict>.txt", 0); }
     char *txtFName = argv[1], *dictFName = argv[2];
-    printf("[DEBUG]input file: %s, dictionary: %s\n\n", txtFName, dictFName);
+    printf("input file: %s, dictionary: %s\n\n", txtFName, dictFName);
     driver(txtFName, dictFName);
 }
 

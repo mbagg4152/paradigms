@@ -6,6 +6,8 @@
 
 #define TRUE 1
 #define FALSE 0
+#define LEN 50
+
 void checkWords(char *dictFName);
 int getDifference(char *word1, char *word2);
 void quit(char *message, int code);
@@ -15,34 +17,28 @@ int main(int argc, char *argv[]) {
 }
 
 void checkWords(char *dictFName) {
-    char inWord[50], dictWord[50];
-    int compareRes, haltLoop = FALSE;
-    FILE *dict = fopen(dictFName, "r"); // open dictionary
-    if (dict != NULL) {
-        // if one of the input sources is empty, no need to loop
-        if (fgets(inWord, 50, stdin) == NULL || fgets(dictWord, 50, dict) == NULL) { haltLoop = TRUE; }
+    char input[LEN], dContent[LEN];
+    int difference, haltLoop = FALSE;
+    FILE *dFile = fopen(dictFName, "r"); // open dictionary
+    if (dFile != NULL) {
+        // if one or both of the input sources is empty, no need to loop
+        if (fgets(input, LEN, stdin) == NULL || fgets(dContent, LEN, dFile) == NULL) haltLoop = TRUE;
         while (!haltLoop) {
-            compareRes = getDifference(inWord, dictWord); // get value from comparison
-            if (compareRes > 0) { // dictionary word > input string, move to next dictionary word
-                if (fgets(dictWord, 50, dict) == NULL) { haltLoop = TRUE; } // reached EOF
-            } else if (compareRes < 0) { //if the value is less than 0, take the next string from stdin
-                //if stdin has reached EOF, set the stop flag
-                if (fgets(inWord, 50, stdin) == NULL) {
-                    haltLoop = TRUE;
-                }
-            }
-                //if it is 0, take the next string and next word from stdin and the dictionary
-                //respectively
-            else {
-                //if either have reached EOF set the stop flag
-                if (fgets(inWord, 50, stdin) == NULL || fgets(dictWord, 50, dict) == NULL) { haltLoop = TRUE; }
+            difference = getDifference(input, dContent); // get value from comparison
+            if (difference > 0) { // dictionary word > input string, move to next dictionary word
+                if (fgets(dContent, LEN, dFile) == NULL) haltLoop = TRUE;  // got to EOF
+            } else if (difference < 0) { // go to next string from stdin
+                if (fgets(input, LEN, stdin) == NULL) haltLoop = TRUE;  // no more input to compare
+            } else {
+                // if dictionary or stdin have no more content, stop looking
+                if (fgets(input, LEN, stdin) == NULL || fgets(dContent, LEN, dFile) == NULL) haltLoop = TRUE;
             }
         }
-        //if there are any remaining words after the previous loop, they are spelled wrong
-        while (fgets(inWord, 50, stdin) != NULL) {
-            printf("Wrong: %s", inWord);
-        }
-    } else { quit("error in opening dictionary", 0); }
+        // any remaining words from stdin are spelled wrong
+        while (fgets(input, LEN, stdin) != NULL) { printf("Wrong: %s", input); }
+
+    } else { quit("Couldn't open dictionary", 0); }
+
 }
 
 int getDifference(char *word1, char *word2) {

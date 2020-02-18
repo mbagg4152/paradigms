@@ -104,7 +104,7 @@ void driver(char *inputName, char *dictName) {
 
 void initSigAction() {
     struct sigaction action;
-    action.sa_sigaction = handler;
+    action.sa_sigaction = handler; // sa_sigaction requires (int, siginfo_t*, void*)
     action.sa_flags = SA_SIGINFO;
     sigfillset(&action.sa_mask);
     sigdelset(&action.sa_mask, SIGCHLD);
@@ -112,6 +112,7 @@ void initSigAction() {
 }
 
 //https://linux.die.net/man/2/sigaction
+// needs to have the same signature as sa_sigaction
 void handler(int sigID, siginfo_t *sigInfo, void *context) {
     pid_t current;
     int status, selector = 0;

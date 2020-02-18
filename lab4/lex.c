@@ -4,6 +4,7 @@
 #include <string.h>
 
 void processFile(char *fName);
+
 void quit(char *message, int code);
 
 int main(int argc, char *argv[]) {
@@ -15,6 +16,8 @@ int main(int argc, char *argv[]) {
 
 void processFile(char *fName) {
     FILE *file = fopen(fName, "r");
+    FILE *outFile = fopen("lexout.txt","w");
+    
     if (file == NULL) { quit("error opening file(s)", 0); }
     fseek(file, 0, SEEK_END);
     long fSize = ftell(file);

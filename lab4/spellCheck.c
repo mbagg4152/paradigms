@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <fcntl.h>
-#include<signal.h>
+#include <signal.h>
 
 char *lexCmd = "./l", *compCmd = "./c", *sortCmd = "sort", *sortFlag = "-u";
 char *lexArgs[3], *sortArgs[3], *compArgs[3], *procs[3];

@@ -18,7 +18,7 @@ FILE *logFile;
 void driver(char *inputName, char *dictName);
 void initValues(char *inputName, char *dictName);
 void initSigAction();
-void handler(int sigID, siginfo_t *sigInfo, void *context);
+void sigHandler(int sigID, siginfo_t *sigInfo, void *context);
 void runLex(int pipe[]);
 void runSort(int *in, int *out);
 void runCompare(int pipe[]);
@@ -26,9 +26,9 @@ void quit(char *message, int code);
 
 int main(int argc, char *argv[]) {
     if ((argc > 3) || (argc < 3)) { quit("incorrect arg count. usage: ./s <file>.txt <dict>.txt", 0); }
-    char *inFName = argv[1], *dFName = argv[2];
-    printf("[DEBUG]input file: %s, dictionary: %s\n\n", inFName, dFName);
-    driver(inFName, dFName);
+    char *txtFName = argv[1], *dictFName = argv[2];
+    printf("[DEBUG]input file: %s, dictionary: %s\n\n", txtFName, dictFName);
+    driver(txtFName, dictFName);
 }
 
 void driver(char *inputName, char *dictName) {
@@ -36,9 +36,6 @@ void driver(char *inputName, char *dictName) {
     int ltsPipe[2]; // store ends of pipe from lex --> sort
     int stcPipe[2]; // store ends of pipe from sort --> compare
     initSigAction();
-
-    deadCount = 0;
-    logFile = fopen("spellCheck.log", "w");
 
     pipe(ltsPipe);
     lexPid = fork(); // create child process for lex
@@ -66,38 +63,43 @@ void driver(char *inputName, char *dictName) {
 }
 
 void initValues(char *inputName, char *dictName) {
+    // fill with process names, to be used in log file
     procs[0] = lexCmd;
     procs[1] = sortCmd;
     procs[2] = compCmd;
+    // args needed to properly execute lex.out
     lexArgs[0] = lexCmd;
     lexArgs[1] = inputName;
     lexArgs[2] = NULL;
+    // args needed to properly execute sort so that it removes duplicates
     sortArgs[0] = sortCmd;
     sortArgs[1] = sortFlag;
     sortArgs[2] = NULL;
+    // args needed to properly execute compare.out
     compArgs[0] = compCmd;
     compArgs[1] = dictName;
     compArgs[2] = NULL;
-
+    deadCount = 0; // init counter for dead children
+    logFile = fopen("spellCheck.log", "w"); // open log file for writing
 }
 
 void initSigAction() {
     struct sigaction action;
-    action.sa_sigaction = handler; // sa_sigaction requires (int, siginfo_t*, void*)
+    action.sa_sigaction = sigHandler; // sa_sigaction requires (int, siginfo_t*, void*)
     action.sa_flags = SA_SIGINFO; // int, this flag is only meaningful when establishing a signal handler
     sigfillset(&action.sa_mask); // init & fill signal set
     sigdelset(&action.sa_mask, SIGCHLD); // delete SIGCHLD from signal set
     sigaction(SIGCHLD, &action, NULL); // examine & change signal action
 }
 
-//https://linux.die.net/man/2/sigaction
 // needs to have the same signature as sa_sigaction
-void handler(int sigID, siginfo_t *sigInfo, void *context) {
+void sigHandler(int sigID, siginfo_t *sigInfo, void *context) {
     pid_t current;
     int status, pos = 0;
     char logContent[400];
     if (sigID == SIGCHLD) { // do something only if signal is SIGCHLD
-        // while there are still dead children, WNOHANG ensures waitpid returns status info immediately
+        // while there are dead children, do something
+        // WNOHANG ensures waitpid returns status info immediately
         while ((current = waitpid(-1, &status, WNOHANG)) > 0) {
             // set pos based on value of current in order to have correct vals written to log
             if (current == pids[0]) { pos = 0; }

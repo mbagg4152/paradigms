@@ -3,21 +3,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-void processFile(char *fName);
+char *outputName = "lexout.txt";
 
+void processFile(char *fName);
 void quit(char *message, int code);
 
 int main(int argc, char *argv[]) {
-    if ((argc > 2) || (argc < 2)) { quit("incorrect arg count. usage: ./l <file_name>.txt", 0); }
+    if ((argc > 2) || (argc < 2)) { quit("incorrect arg count. lex.out requires arg <file_name>.txt", 0); }
     char *fileName = argv[1];
     processFile(fileName);
     return 0;
 }
 
 void processFile(char *fName) {
-    FILE *file = fopen(fName, "r");
-    FILE *outFile = fopen("lexout.txt","w");
-    
+    FILE *file = fopen(fName, "r"), *outFile = fopen(outputName, "w");
+
     if (file == NULL) { quit("error opening file(s)", 0); }
     fseek(file, 0, SEEK_END);
     long fSize = ftell(file);
@@ -40,6 +40,7 @@ void processFile(char *fName) {
     }
     for (pos = 0; pos < lineCount; pos++) printf("%s\n", lineArr[pos]);
     fclose(file);
+    fclose(outFile);
 }
 
 void quit(char *message, int code) {

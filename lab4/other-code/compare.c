@@ -21,7 +21,7 @@ void lowerCase(char *word) {
 }
 
 /*
-wordCompare takes two words and returns their comparison value, if it is 0 it prints that the first
+getDifference takes two words and returns their comparison value, if it is 0 it prints that the first
 word is spelled correctly, it is less than 0 it prints that the first word is spelled wrong
 DATA TABLE
 NAME			DESCRIPTION
@@ -29,7 +29,7 @@ word1			parameter - first word for comparison
 word2			parameter - second word for comparison
 compare			the result of the comparison
 */
-int wordCompare(char *word1, char *word2) {
+int getDifference(char *word1, char *word2) {
     //convert the first word to lower case to match the second one
     lowerCase(word1);
     //compare the two words
@@ -50,7 +50,7 @@ int wordCompare(char *word1, char *word2) {
 main is the controlling function of the program. While stdin and the dictionary aren't at EOF,
 it will read in a line from both and compare them using the wordCompare function. It will then
 either attempt to take the next line from stdin, the dictionary or both depending on the return
-value from wordCompare. If either stdin or the dictionary reach EOF, the loop terminates. If
+value from getDifference. If either stdin or the dictionary reach EOF, the loop terminates. If
 the dictionary runs out of words first, the remaining words in stdin will be labeled as incorrect
 DATA TABLE
 NAME			DESCRIPTION
@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
         }
         while (!stop) {
             //compare the values of the two words
-            compare = wordCompare(checkWord, dictWord);
+            compare = getDifference(checkWord, dictWord);
             //if the value is greater than 0, implying that the dictionary
             //word is less than the string, take the next dictionary word
             if (compare > 0) {

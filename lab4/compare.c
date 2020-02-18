@@ -4,81 +4,56 @@
 #include<string.h>
 #include<ctype.h>
 
-void lowerCase(char *word);
-int wordCompare(char *word1, char *word2);
+#define TRUE 1
+#define FALSE 0
+void checkWords(char *dictFName);
+int getDifference(char *word1, char *word2);
+void quit(char *message, int code);
 
 int main(int argc, char *argv[]) {
-    char checkWord[50];
-    char dictWord[50];
-    int compare;
-    int stop = 0;
-    FILE *dict;
-    //attempt to open the dictionary
-    if ((dict = fopen(argv[1], "r"))) {
-        //if either stdin or the dictionary is empty, cancel the loop
-        if (fgets(checkWord, 50, stdin) == NULL || fgets(dictWord, 50, dict) == NULL) {
-            stop = 1;
-        }
-        while (!stop) {
-            //compare the values of the two words
-            compare = wordCompare(checkWord, dictWord);
-            //if the value is greater than 0, implying that the dictionary
-            //word is less than the string, take the next dictionary word
-            if (compare > 0) {
-                //if the dictionary has reached EOF, set the stop flag
-                if (fgets(dictWord, 50, dict) == NULL) {
-                    stop = 1;
-                }
-            }
-                //if the value is less than 0, take the next string from stdin
-            else if (compare < 0) {
+    checkWords(argv[1]);
+}
+
+void checkWords(char *dictFName) {
+    char inWord[50], dictWord[50];
+    int compareRes, haltLoop = FALSE;
+    FILE *dict = fopen(dictFName, "r"); // open dictionary
+    if (dict != NULL) {
+        // if one of the input sources is empty, no need to loop
+        if (fgets(inWord, 50, stdin) == NULL || fgets(dictWord, 50, dict) == NULL) { haltLoop = TRUE; }
+        while (!haltLoop) {
+            compareRes = getDifference(inWord, dictWord); // get value from comparison
+            if (compareRes > 0) { // dictionary word > input string, move to next dictionary word
+                if (fgets(dictWord, 50, dict) == NULL) { haltLoop = TRUE; } // reached EOF
+            } else if (compareRes < 0) { //if the value is less than 0, take the next string from stdin
                 //if stdin has reached EOF, set the stop flag
-                if (fgets(checkWord, 50, stdin) == NULL) {
-                    stop = 1;
+                if (fgets(inWord, 50, stdin) == NULL) {
+                    haltLoop = TRUE;
                 }
             }
                 //if it is 0, take the next string and next word from stdin and the dictionary
                 //respectively
             else {
                 //if either have reached EOF set the stop flag
-                if (fgets(checkWord, 50, stdin) == NULL || fgets(dictWord, 50, dict) == NULL) {
-                    stop = 1;
-                }
+                if (fgets(inWord, 50, stdin) == NULL || fgets(dictWord, 50, dict) == NULL) { haltLoop = TRUE; }
             }
         }
         //if there are any remaining words after the previous loop, they are spelled wrong
-        while (fgets(checkWord, 50, stdin) != NULL) {
-            printf("This word is spelled incorrectly: %s", checkWord);
+        while (fgets(inWord, 50, stdin) != NULL) {
+            printf("Wrong: %s", inWord);
         }
-    }
-        //if the dictionary failed to open, print it
-    else {
-        printf("An error occurred opening the dictionary\n");
-    }
+    } else { quit("error in opening dictionary", 0); }
 }
 
-void lowerCase(char *word) {
-    int spot = 0;
-    while (*(word + spot) != '\0') {
-        *(word + spot) = tolower(*(word + spot));
-        spot++;
-    }
+int getDifference(char *word1, char *word2) {
+    int compareRes = strcmp(word1, word2);
+    if (compareRes == 0) { printf("Correct: %s", word1); } // no difference between words
+    else if (compareRes < 0) { printf("Wrong: %s", word1); } // difference between words
+    return compareRes;
 }
 
-int wordCompare(char *word1, char *word2) {
-    //convert the first word to lower case to match the second one
-    lowerCase(word1);
-    //compare the two words
-    int compare = strcmp(word1, word2);
-    //if comparison is 0, the word is spelled right
-    if (compare == 0) {
-        printf("This word is spelled correctly: %s", word1);
-    }
-        //if it is less than 0, the word is spelled wrong
-    else if (compare < 0) {
-        printf("This word is spelled incorrectly: %s", word1);
-    }
-    return compare;
-
+void quit(char *message, int code) {
+    printf("%s\n", message);
+    exit(code);
 }
 

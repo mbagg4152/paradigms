@@ -9,3 +9,7 @@
 
 
  -- code
+ sawBoards :: String -> [(Int, Int)]
+
+ sawBoards x = (square, square*x)
+             where square = x*x

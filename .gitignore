@@ -11,3 +11,8 @@ CTestTestfile.cmake
 _deps
 .idea/
 cmake-build-debug/
+Haskell/lab2/Main.hi
+Haskell/lab2/Main.exe
+Haskell/lab2/Main.o
+Haskell/lab2/SawBoards.hi
+Haskell/lab2/SawBoards.o

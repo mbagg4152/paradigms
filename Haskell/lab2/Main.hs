@@ -17,13 +17,13 @@ makeOutput input boards = formatInput input ++ formatBoards boards
 
 -- formatBoards formats the result of calling function sawBoards
 formatBoards :: [(Int, Int)] -> String
-formatBoards boards = "\tCut boards listed as length: number\n\t\t" ++
+formatBoards boards = "\tCut boards\n\t\t" ++
                       addCutBoards boards
 
 --addCutBoards is the helper function for formatBoards, which actually
 --  recursively does all the work.
 addCutBoards [] = []
-addCutBoards[(len, num)] = (show len) ++ ": " ++ (show num) ++ "\n"
+addCutBoards[(len, num)] = "len: "++(show len) ++ " happens " ++ (show num) ++ "x\n"
 addCutBoards ((len, num):bds) = (show len) ++ ": " ++ (show num) ++
                                  ", " ++ addCutBoards bds
 
@@ -70,7 +70,7 @@ main = do
   [inFile, outFile] <- getArgs
   inFileHandle <- openFile inFile ReadMode
   outFileHandle <- openFile outFile WriteMode
-  hPutStrLn outFileHandle "               Sawing Boards"
+  hPutStrLn outFileHandle "Sawing Boards"
   hPutStrLn outFileHandle ""
   processInput inFileHandle outFileHandle
   hClose inFileHandle

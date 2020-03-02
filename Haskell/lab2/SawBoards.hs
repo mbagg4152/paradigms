@@ -14,35 +14,38 @@
  
  
  sawBoards :: String -> [(Int, Int)]
- sawBoards inStr =
-    [(length, number)] where
-    inList = map read (words inStr) :: [Int] -- read in input & put into list
-    selected = minimum inList -- select the smallest length
-    out = process inList
-    length = fst out -- length is the first element of the outputted tuple
-    number = snd out -- number is the second element of outputted tuple
+ sawBoards inStr = out
+        where
+            inList = map read (words inStr) :: [Int] -- read in input & put into list
+            len = getLen inList
+            num = getNum inList
+            out = zip len num
+
+ getLen :: [Int] -> [Int]
+ getLen [] = []
+ getLen list = out
+    where
+    out = [minimum list] ++ getLen (math list)
  
+ getNum :: [Int] -> [Int]
+ getNum [] = []
+ getNum list = out
+    where
+    out = [length list] ++ getNum (math list)
+    
+ math :: [Int] -> [Int]
+ math [] = []
+ math list =
+    sawed
+    where
+        sel = minimum list
+        newList = filter (/= sel) list
+        removedCnt = (length list) - (length newList) -- keep track of number of items removed
+        sawed = map (subtract sel) newList
+        
+
+    
  
- process :: [Int] -> (Int,Int)
- process list =
-    (len, num) where
-    sel = minimum list
-    indx = fromMaybe 0 (elemIndex sel list) -- convert index from Maybe Int to Int. indx becomes 0 if elemIndex returns Nothing
-    len = sel
-    num = indx
-    
- deleteAt :: [Int] -> Int -> [Int]
- deleteAt list index =
-    [elements] where
-    split = splitAt index list -- value to delete becomes first value of second list
-    l1 = fst split
-    l2 = drop 1 (snd split) -- remove first element of list
-    
-    
-    
-    
-    
-    
-    [elements] = list
-    
-    
+
+        
+        

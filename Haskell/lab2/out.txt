@@ -1,22 +1,22 @@
-Sawing Boards
+               Sawing Boards
 
 	Boards listed by length
 		10, 14, 7, 5, 23, 37
-	Cut boards
-		len: 5 happens 3x
+	Cut boards listed as length: number
+		5: 6, 2: 5, 3: 4, 4: 3, 9: 2, 14: 1
 
 	Boards listed by length
 		2, 6, 4, 6, 3
-	Cut boards
-		len: 2 happens 0x
+	Cut boards listed as length: number
+		2: 5, 1: 4, 1: 3, 2: 2
 
 	Boards listed by length
-		7, 5, 1
-	Cut boards
-		len: 1 happens 2x
+		7, 1, 5
+	Cut boards listed as length: number
+		1: 3, 4: 2, 2: 1
 
 	Boards listed by length
 		2, 1, 2
-	Cut boards
-		len: 1 happens 1x
+	Cut boards listed as length: number
+		1: 3, 1: 2
 

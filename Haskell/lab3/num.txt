@@ -1,0 +1,10 @@
+one
+ONE two
+one Two three
+ONE two thrEE four
+one Two three 4our five
+ONE two thrEE four f1Ve six
+one Two three 4our five $ix seven
+ONE two thrEE four f1Ve six seven eight
+one Two three 4our five $ix seven eight nine
+ONE two thrEE four f1Ve six seven eight nine ten

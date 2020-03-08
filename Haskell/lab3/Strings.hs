@@ -22,43 +22,30 @@ main = do
     let wordCount = length (words fContent)
     let rev = reverse fLines
     let wCount = 0
-    printWithLineCount rev len 0 wCount
+    let sep = "----------------------------------------------------------------"
+    putStrLn sep
+    printWithLineCount rev  len 0
     
     
-printWithLineCount line count idx wc = do
+printWithLineCount revLineOrd count idx = do
     if count == 0
         then return()
         else do
-            let tmpWords = words (line!!idx)
-            let tmp = unwords (reverse tmpWords)
-            let out = (show count) ++ ". "++ tmp
+            let regWordOrd = words (revLineOrd!!idx)
+            let revWordOrd = regWordOrd
+            let wCount = length regWordOrd
+            let tmp = unwords (reverse revWordOrd)
+            
+            let lineNum = "LINE "++(show count)
+            let orgStr = "\nOriginal: " ++ (unwords regWordOrd)
+            let revStr = "\nReversed: "++tmp
+            let wcStr = "\nword count: "++(show wCount)
+            let sep = "\n----------------------------------------------------------------"
+            let out = lineNum++orgStr++revStr++wcStr++sep
+            
             putStrLn out
-            printWithLineCount line (count - 1) (idx + 1) 
-        
-        
+            printWithLineCount revLineOrd (count - 1) (idx + 1)
 
-
-
---wordsPerLine :: [String] -> Int
-
-
-
---countChars :: [String] -> [(Char,Int)]
-
--- getCharList :: [(String,[Int])] ->[(String,[Int])]
--- getCharList [] = []
--- getCharList tup = list
---     where
-        
-    
-
-
-pr val = do
-    putStrLn val
-
-
-
---getEachCharCount :: [String] -> [Int]
 
 mkUniq :: Ord a => [a] -> [a]
 mkUniq = toList . fromList

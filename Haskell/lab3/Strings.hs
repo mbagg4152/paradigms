@@ -11,23 +11,32 @@ import Data.Function
 import System.Environment
 import System.IO
 
--- note: bee.txt has 47 words, 6 lines & 237 chars
+-- bee.txt 47 words, 6 lines & 237 chars
+-- num.txt: 55 words, 10 lines & 255 chars
 
 main = do
     fName <- getArgs
     fContent <- readFile (fName !! 0)
     let fLines = lines fContent
-    putStrLn (show fName)
     let len = length fLines
     let wordCount = length (words fContent)
-    putStrLn (show len)
-    putStrLn (show wordCount)
-    lastLineFirst fLines
-    
-    
-lastLineFirst fLines = do
     let rev = reverse fLines
-    mapM_ print rev
+    let wCount = 0
+    printWithLineCount rev len 0 wCount
+    
+    
+printWithLineCount line count idx wc = do
+    if count == 0
+        then return()
+        else do
+            let tmpWords = words (line!!idx)
+            let tmp = unwords (reverse tmpWords)
+            let out = (show count) ++ ". "++ tmp
+            putStrLn out
+            printWithLineCount line (count - 1) (idx + 1) 
+        
+        
+
 
 
 --wordsPerLine :: [String] -> Int

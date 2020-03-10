@@ -5,11 +5,12 @@
 
 module Main where
 
-import Data.Set
+
 import Data.List
 import Data.Function
 import System.Environment
 import System.IO
+import Data.Char
 
 -- bee.txt 47 words, 6 lines & 237 chars
 -- num.txt: 55 words, 10 lines & 255 chars
@@ -18,13 +19,14 @@ main = do
     fName <- getArgs
     fContent <- readFile (fName !! 0)
     let fLines = lines fContent
-    let len = length fLines
-    let wordCount = length (words fContent)
-    let rev = reverse fLines
-    let wCount = 0
+    let fLength = length fLines
+    let totalWordCount = length (words fContent)
+    let revLines = reverse fLines
     let sep = "----------------------------------------------------------------"
     putStrLn sep
-    printWithLineCount rev  len 0
+    printWithLineCount revLines  fLength 0
+    let twcStr = "\nTotal word count in file: "++(show totalWordCount) ++"\n\n"
+    putStrLn twcStr
     
     
 printWithLineCount revLineOrd count idx = do
@@ -33,19 +35,22 @@ printWithLineCount revLineOrd count idx = do
         else do
             let regWordOrd = words (revLineOrd!!idx)
             let revWordOrd = regWordOrd
-            let wCount = length regWordOrd
-            let tmp = unwords (reverse revWordOrd)
+            let wordCount = length regWordOrd
+            let revOrd = unwords (reverse revWordOrd)
             
-            let lineNum = "LINE "++(show count)
+            let lineNum = "LINE " ++ (show count)
             let orgStr = "\nOriginal: " ++ (unwords regWordOrd)
-            let revStr = "\nReversed: "++tmp
-            let wcStr = "\nword count: "++(show wCount)
+            let revStr = "\nReversed: " ++ revOrd
+            let wcStr = "\nword count: " ++ (show wordCount)
             let sep = "\n----------------------------------------------------------------"
-            let out = lineNum++orgStr++revStr++wcStr++sep
-            
+            let stripped = "\n"++ stripNonAlpha (unwords regWordOrd)
+            let out = lineNum++orgStr++revStr++wcStr++stripped++sep
             putStrLn out
             printWithLineCount revLineOrd (count - 1) (idx + 1)
 
-
-mkUniq :: Ord a => [a] -> [a]
-mkUniq = toList . fromList
+stripNonAlpha :: String -> String
+stripNonAlpha toStrip = stripped 
+    where
+        lower = map toLower toStrip
+        alpha = filter isLetter  lower
+        stripped = alpha

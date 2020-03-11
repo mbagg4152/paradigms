@@ -26,30 +26,30 @@ main = do
     let totalFreq = drop 1 (charSurvey (length allAlpha) allAlpha dummyPair)
     let formattedFreq = formatPairs (length totalFreq) "" totalFreq
     appendFile outName ("Frequency of each letter in file displayed as (letter, times):\n\t" ++ formattedFreq ++ sep) 
-    printWithLineCount revLines (length fLines) 0 outName
-
+    appendWithLineCount revLines (length fLines) 0 outName
     
-    
-printWithLineCount revLines count idx foName = do
+appendWithLineCount revLines count idx foName = do
     if count == 0
         then return()
         else do
-            let origLines = words (revLines!!idx)
-            let revWords = unwords (reverse origLines)
-            let sortedAlpha = setupLine (unwords origLines)
+            let origWords = words (revLines!!idx)  -- line order fed in reverse, but word order still the same per line
+            let revWords = unwords (reverse origWords)  -- reverse word order in line
+            let sortedAlpha = setupLine (unwords origWords)  -- stripped non-alpha chars & sorted
             let charFreq = drop 1 (charSurvey (length sortedAlpha) sortedAlpha dummyPair)
             let formatted = formatPairs (length charFreq) "" charFreq
-            let outPut = "LINE " ++ (show count) ++ "\n  Original: " ++ (unwords origLines) ++
-                    "\n  Reversed: " ++ revWords ++ "\n  Word count: " ++ (show (length origLines)) ++
-                    "\n  Frequency of each letter in line displayed as (letter, times):\n\t" ++ formatted ++ sep
+            let outPut = "LINE " ++ (show count) ++ 
+                         "\n  Original: " ++ (unwords origWords) ++
+                         "\n  Reversed: " ++ revWords ++ 
+                         "\n  Word count: " ++ (show (length origWords)) ++
+                         "\n  Frequency of each letter in line displayed as (letter, times):\n\t" ++ formatted ++ sep
             appendFile foName outPut
-            printWithLineCount revLines (count - 1) (idx + 1) foName
+            appendWithLineCount revLines (count - 1) (idx + 1) foName
 
 setupLine :: String -> String
-setupLine toStrip = stripped 
-    where
-        lower = map toLower toStrip
-        stripped = sort (filter isLetter (map toLower toStrip))  -- keep only alphabetic chars
+setupLine toStrip = sort (filter isLetter (map toLower toStrip))  -- keep only alphabetic chars 
+    --where
+      --  lower = map toLower toStrip
+        --stripped = 
 
 singleCharSurvey :: String -> [(Char,Int)] 
 singleCharSurvey "" = []

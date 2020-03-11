@@ -28,3 +28,6 @@ Haskell/lab2/brend/out.txt
 Haskell/lab2/brend/SawBoards.hi
 Haskell/lab2/brend/SawBoards.hs
 Haskell/lab2/brend/SawBoards.o
+*.exe
+*.hi
+*.o

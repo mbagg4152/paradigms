@@ -11,8 +11,15 @@ import Data.List
 import System.Environment
 import System.IO
 
-sep = "\n\n" 
-dummyPair = [('0',0)]
+dnl = "\n\n"
+nl = "\n" 
+pfxPair = "\n\t  "
+pfxFLine ="\n  "
+initPair = [('0',0)]
+brFlag = 5
+wCntLbl = "Word count: "
+freqLbl = "Letter frequency as (letter, times):"
+em = ""
 
 main = do
     fNames <- getArgs
@@ -21,11 +28,13 @@ main = do
     let fLines = lines fContent
     let totalWordCount = length (words fContent)
     let revLines = reverse fLines
-    writeFile outName ("\nTotal word count in file: " ++ (show totalWordCount) ++ "\n\n")
     let allAlpha = setupLine (unlines fLines)
-    let totalFreq = drop 1 (charSurvey (length allAlpha) allAlpha dummyPair)
-    let formattedFreq = formatPairs (length totalFreq) "" totalFreq
-    appendFile outName ("Frequency of each letter in file displayed as (letter, times):\n\t" ++ formattedFreq ++ sep) 
+    let totalFreq = drop 1 (charSurvey (length allAlpha) allAlpha initPair)
+    let formattedFreq = formatPairs (length totalFreq) em totalFreq brFlag
+    writeFile outName ("FOR ENTIRE FILE\n" ++ 
+                        wCntLbl ++ (show totalWordCount) ++ 
+                        nl ++ freqLbl ++ pfxPair ++ formattedFreq ++ 
+                        dnl)
     appendWithLineCount revLines (length fLines) 0 outName
     
 appendWithLineCount revLines count idx foName = do
@@ -35,21 +44,19 @@ appendWithLineCount revLines count idx foName = do
             let origWords = words (revLines!!idx)  -- line order fed in reverse, but word order still the same per line
             let revWords = unwords (reverse origWords)  -- reverse word order in line
             let sortedAlpha = setupLine (unwords origWords)  -- stripped non-alpha chars & sorted
-            let charFreq = drop 1 (charSurvey (length sortedAlpha) sortedAlpha dummyPair)
-            let formatted = formatPairs (length charFreq) "" charFreq
-            let outPut = "LINE " ++ (show count) ++ 
-                         "\n  Original: " ++ (unwords origWords) ++
-                         "\n  Reversed: " ++ revWords ++ 
-                         "\n  Word count: " ++ (show (length origWords)) ++
-                         "\n  Frequency of each letter in line displayed as (letter, times):\n\t" ++ formatted ++ sep
+            let charFreq = drop 1 (charSurvey (length sortedAlpha) sortedAlpha initPair)
+            let formatted = formatPairs (length charFreq) em charFreq brFlag
+            let outPut = nl ++ "LINE " ++ (show count) ++ 
+                         pfxFLine  ++ "Original: " ++ (unwords origWords) ++
+                         pfxFLine  ++ "Reversed: " ++ revWords ++ 
+                         pfxFLine  ++ wCntLbl ++ (show (length origWords)) ++
+                         pfxFLine  ++ freqLbl ++ pfxPair ++ formatted ++ dnl
             appendFile foName outPut
             appendWithLineCount revLines (count - 1) (idx + 1) foName
 
+-- keep only alphabetic chars & convert all to lowercase
 setupLine :: String -> String
-setupLine toStrip = sort (filter isLetter (map toLower toStrip))  -- keep only alphabetic chars 
-    --where
-      --  lower = map toLower toStrip
-        --stripped = 
+setupLine toStrip = sort (filter isLetter (map toLower toStrip))   
 
 singleCharSurvey :: String -> [(Char,Int)] 
 singleCharSurvey "" = []
@@ -67,16 +74,22 @@ charSurvey len str pairs = pairList
         updated = pairs ++ (singleCharSurvey str)
         pairList = charSurvey (length short) short updated
 
-formatPairs :: Int -> [Char] -> [(Char, Int)] -> [Char]
-formatPairs 0 strn pairList = strn
-formatPairs len strn pairList = formatted
+formatPairs :: Int -> [Char] -> [(Char, Int)] -> Int -> [Char]
+formatPairs 0 strn pairList nlFlag = strn
+formatPairs len strn pairList nlFlag = formatted
     where
         fElem = pairList!!0
-        end = strEnd len 
-        out = strn ++ "(" ++ [fst fElem] ++ "," ++ (show(snd fElem)) ++ end
+        endParen = strEnd len
+        endSep = fst (optEnd nlFlag)
+        nFlag = snd (optEnd nlFlag) 
+        out = strn ++ "(" ++ [fst fElem] ++ "," ++ (show(snd fElem)) ++ endParen ++ endSep
         shorter = drop 1 pairList 
-        formatted = formatPairs (length shorter) out shorter
+        formatted = formatPairs (length shorter) out shorter nFlag
 
 strEnd :: Int -> String
 strEnd 1 = ")"
 strEnd len = "), "
+
+optEnd :: Int -> (String, Int)
+optEnd 0 = ("\n    " , brFlag)
+optEnd count = ("", (count-1))

@@ -1,41 +1,69 @@
+FOR ENTIRE FILE
+Word count: 33
+Letter frequency as (letter, times):
+	  (a,9), (b,5), (c,6), (d,6), (e,8), (f,5), 
+    (g,4), (h,5), (i,11), (j,5), (k,6), (l,6), 
+    (m,5), (n,5), (o,7), (p,5), (q,5), (r,5), 
+    (s,6), (t,5), (u,8), (v,5), (w,5), (x,5), 
+    (y,5), (z,5)
 
-Total word count in file: 33
-
-Frequency of each letter in file displayed as (letter, times):
-	(a,9), (b,5), (c,6), (d,6), (e,8), (f,5), (g,4), (h,5), (i,11), (j,5), (k,6), (l,6), (m,5), (n,5), (o,7), (p,5), (q,5), (r,5), (s,6), (t,5), (u,8), (v,5), (w,5), (x,5), (y,5), (z,5)
 
 LINE 5
   Original: Sphinx of black quartz judge my vow.
   Reversed: vow. my judge quartz black of Sphinx
   Word count: 7
-  Frequency of each letter in line displayed as (letter, times):
-	(a,2), (b,1), (c,1), (d,1), (e,1), (f,1), (g,1), (h,1), (i,1), (j,1), (k,1), (l,1), (m,1), (n,1), (o,2), (p,1), (q,1), (r,1), (s,1), (t,1), (u,2), (v,1), (w,1), (x,1), (y,1), (z,1)
+  Letter frequency as (letter, times):
+	  (a,2), (b,1), (c,1), (d,1), (e,1), (f,1), 
+    (g,1), (h,1), (i,1), (j,1), (k,1), (l,1), 
+    (m,1), (n,1), (o,2), (p,1), (q,1), (r,1), 
+    (s,1), (t,1), (u,2), (v,1), (w,1), (x,1), 
+    (y,1), (z,1)
+
 
 LINE 4
   Original: Waltz, nymph, for quick jigs vex Bud.
   Reversed: Bud. vex jigs quick for nymph, Waltz,
   Word count: 7
-  Frequency of each letter in line displayed as (letter, times):
-	(a,1), (b,1), (c,1), (d,1), (e,1), (f,1), (g,1), (h,1), (i,2), (j,1), (k,1), (l,1), (m,1), (n,1), (o,1), (p,1), (q,1), (r,1), (s,1), (t,1), (u,2), (v,1), (w,1), (x,1), (y,1), (z,1)
+  Letter frequency as (letter, times):
+	  (a,1), (b,1), (c,1), (d,1), (e,1), (f,1), 
+    (g,1), (h,1), (i,2), (j,1), (k,1), (l,1), 
+    (m,1), (n,1), (o,1), (p,1), (q,1), (r,1), 
+    (s,1), (t,1), (u,2), (v,1), (w,1), (x,1), 
+    (y,1), (z,1)
+
 
 LINE 3
   Original: The five boxing wizards jumped quickly.
   Reversed: quickly. jumped wizards boxing five The
   Word count: 6
-  Frequency of each letter in line displayed as (letter, times):
-	(a,1), (b,1), (c,1), (d,2), (e,3), (f,1), (g,1), (h,1), (i,4), (j,1), (k,1), (l,1), (m,1), (n,1), (o,1), (p,1), (q,1), (r,1), (s,1), (t,1), (u,2), (v,1), (w,1), (x,1), (y,1), (z,1)
+  Letter frequency as (letter, times):
+	  (a,1), (b,1), (c,1), (d,2), (e,3), (f,1), 
+    (g,1), (h,1), (i,4), (j,1), (k,1), (l,1), 
+    (m,1), (n,1), (o,1), (p,1), (q,1), (r,1), 
+    (s,1), (t,1), (u,2), (v,1), (w,1), (x,1), 
+    (y,1), (z,1)
+
 
 LINE 2
   Original: Jackdaws love my sphinx of black quartz.
   Reversed: quartz. black of sphinx my love Jackdaws
   Word count: 7
-  Frequency of each letter in line displayed as (letter, times):
-	(a,4), (b,1), (c,2), (d,1), (e,1), (f,1), (h,1), (i,1), (j,1), (k,2), (l,2), (m,1), (n,1), (o,2), (p,1), (q,1), (r,1), (s,2), (t,1), (u,1), (v,1), (w,1), (x,1), (y,1), (z,1)
+  Letter frequency as (letter, times):
+	  (a,4), (b,1), (c,2), (d,1), (e,1), (f,1), 
+    (h,1), (i,1), (j,1), (k,2), (l,2), (m,1), 
+    (n,1), (o,2), (p,1), (q,1), (r,1), (s,2), 
+    (t,1), (u,1), (v,1), (w,1), (x,1), (y,1), 
+    (z,1)
+
 
 LINE 1
   Original: Quick wafting zephyrs vex bold Jim.
   Reversed: Jim. bold vex zephyrs wafting Quick
   Word count: 6
-  Frequency of each letter in line displayed as (letter, times):
-	(a,1), (b,1), (c,1), (d,1), (e,2), (f,1), (g,1), (h,1), (i,3), (j,1), (k,1), (l,1), (m,1), (n,1), (o,1), (p,1), (q,1), (r,1), (s,1), (t,1), (u,1), (v,1), (w,1), (x,1), (y,1), (z,1)
+  Letter frequency as (letter, times):
+	  (a,1), (b,1), (c,1), (d,1), (e,2), (f,1), 
+    (g,1), (h,1), (i,3), (j,1), (k,1), (l,1), 
+    (m,1), (n,1), (o,1), (p,1), (q,1), (r,1), 
+    (s,1), (t,1), (u,1), (v,1), (w,1), (x,1), 
+    (y,1), (z,1)
 

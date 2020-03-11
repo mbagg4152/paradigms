@@ -1,0 +1,95 @@
+
+LINE 10
+  Original: ONE two thrEE four f1Ve six seven eight nine ten
+  Reversed: ten nine eight seven six f1Ve four thrEE two ONE
+  Word count: 10
+  Letter frequency displayed as (character, frequency):
+	  (e,9), (f,2), (g,1), (h,2), (i,3), (n,5), (o,3), (r,2), 
+    (s,2), (t,4), (u,1), (v,2), (w,1), (x,1)
+
+
+LINE 9
+  Original: one Two three 4our five $ix seven eight nine
+  Reversed: nine eight seven $ix five 4our three Two one
+  Word count: 9
+  Letter frequency displayed as (character, frequency):
+	  (e,8), (f,1), (g,1), (h,2), (i,4), (n,4), (o,3), (r,2), 
+    (s,1), (t,3), (u,1), (v,2), (w,1), (x,1)
+
+
+LINE 8
+  Original: ONE two thrEE four f1Ve six seven eight
+  Reversed: eight seven six f1Ve four thrEE two ONE
+  Word count: 8
+  Letter frequency displayed as (character, frequency):
+	  (e,7), (f,2), (g,1), (h,2), (i,2), (n,2), (o,3), (r,2), 
+    (s,2), (t,3), (u,1), (v,2), (w,1), (x,1)
+
+
+LINE 7
+  Original: one Two three 4our five $ix seven
+  Reversed: seven $ix five 4our three Two one
+  Word count: 7
+  Letter frequency displayed as (character, frequency):
+	  (e,6), (f,1), (h,1), (i,2), (n,2), (o,3), (r,2), (s,1), 
+    (t,2), (u,1), (v,2), (w,1), (x,1)
+
+
+LINE 6
+  Original: ONE two thrEE four f1Ve six
+  Reversed: six f1Ve four thrEE two ONE
+  Word count: 6
+  Letter frequency displayed as (character, frequency):
+	  (e,4), (f,2), (h,1), (i,1), (n,1), (o,3), (r,2), (s,1), 
+    (t,2), (u,1), (v,1), (w,1), (x,1)
+
+
+LINE 5
+  Original: one Two three 4our five
+  Reversed: five 4our three Two one
+  Word count: 5
+  Letter frequency displayed as (character, frequency):
+	  (e,4), (f,1), (h,1), (i,1), (n,1), (o,3), (r,2), (t,2), 
+    (u,1), (v,1), (w,1)
+
+
+LINE 4
+  Original: ONE two thrEE four
+  Reversed: four thrEE two ONE
+  Word count: 4
+  Letter frequency displayed as (character, frequency):
+	  (e,3), (f,1), (h,1), (n,1), (o,3), (r,2), (t,2), (u,1), 
+    (w,1)
+
+
+LINE 3
+  Original: one Two three
+  Reversed: three Two one
+  Word count: 3
+  Letter frequency displayed as (character, frequency):
+	  (e,3), (h,1), (n,1), (o,2), (r,1), (t,2), (w,1)
+
+
+LINE 2
+  Original: ONE two
+  Reversed: two ONE
+  Word count: 2
+  Letter frequency displayed as (character, frequency):
+	  (e,1), (n,1), (o,2), (t,1), (w,1)
+
+
+LINE 1
+  Original: one
+  Reversed: one
+  Word count: 1
+  Letter frequency displayed as (character, frequency):
+	  (e,1), (n,1), (o,1)
+
+
+
+FOR ENTIRE FILE
+Word count: 55
+Letter frequency displayed as (character, frequency):
+	  (e,46), (f,10), (g,3), (h,11), (i,13), (n,19), (o,26), (r,15), 
+    (s,7), (t,21), (u,7), (v,10), (w,9), (x,5)
+

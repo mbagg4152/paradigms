@@ -5,55 +5,51 @@
 
 module Main where
 
-
-import Data.List
+import Data.Char
 import Data.Function
+import Data.List
 import System.Environment
 import System.IO
-import Data.Char
 
-exs = "------------------"
-ls = ("\n" ++ exs ++ exs ++ exs ++ exs++ exs++ exs)
+sep = "\n\n" 
 dummyPair = [('0',0)]
--- bee.txt 47 words, 6 lines & 237 chars
--- num.txt: 55 words, 10 lines & 255 chars
 
 main = do
-    fName <- getArgs
-    fContent <- readFile (fName !! 0)
+    fNames <- getArgs
+    fContent <- readFile (fNames!!0)
+    let outName = fNames!!1
     let fLines = lines fContent
-    let fLength = length fLines
     let totalWordCount = length (words fContent)
     let revLines = reverse fLines
-    putStrLn ls
-    printWithLineCount revLines  fLength 0
-    let twcStr = "\nTotal word count in file: " ++ (show totalWordCount) ++ "\n\n"
-    putStrLn twcStr
+    writeFile outName ("\nTotal word count in file: " ++ (show totalWordCount) ++ "\n\n")
+    let allAlpha = setupLine (unlines fLines)
+    let totalFreq = drop 1 (charSurvey (length allAlpha) allAlpha dummyPair)
+    let formattedFreq = formatPairs (length totalFreq) "" totalFreq
+    appendFile outName ("Frequency of each letter in file displayed as (letter, times):\n\t" ++ formattedFreq ++ sep) 
+    printWithLineCount revLines (length fLines) 0 outName
+
     
     
-printWithLineCount revLineOrd count idx = do
+printWithLineCount revLines count idx foName = do
     if count == 0
         then return()
         else do
-            let regWordOrd = words (revLineOrd!!idx)
-            let revOrd = unwords (reverse regWordOrd)
-            let alphOnly = setupLine (unwords regWordOrd)
-            let pair = drop 1 (charSurvey (length alphOnly) alphOnly dummyPair)
-            let formatted = formatPairs (length pair) "" pair
-            let outPut = "LINE " ++ (show count) ++
-                    "\n  Original: " ++ (unwords regWordOrd) ++
-                    "\n  Reversed: " ++ revOrd ++
-                    "\n  Word count: " ++ (show (length regWordOrd)) ++
-                    "\n  Occurance of each character displayed as (letter, times):\n\t" ++ formatted ++
-                    ls
-            putStrLn outPut
-            printWithLineCount revLineOrd (count - 1) (idx + 1)
+            let origLines = words (revLines!!idx)
+            let revWords = unwords (reverse origLines)
+            let sortedAlpha = setupLine (unwords origLines)
+            let charFreq = drop 1 (charSurvey (length sortedAlpha) sortedAlpha dummyPair)
+            let formatted = formatPairs (length charFreq) "" charFreq
+            let outPut = "LINE " ++ (show count) ++ "\n  Original: " ++ (unwords origLines) ++
+                    "\n  Reversed: " ++ revWords ++ "\n  Word count: " ++ (show (length origLines)) ++
+                    "\n  Frequency of each letter in line displayed as (letter, times):\n\t" ++ formatted ++ sep
+            appendFile foName outPut
+            printWithLineCount revLines (count - 1) (idx + 1) foName
 
 setupLine :: String -> String
 setupLine toStrip = stripped 
     where
         lower = map toLower toStrip
-        stripped = sort (filter isLetter lower)  -- keep only alphabetic chars
+        stripped = sort (filter isLetter (map toLower toStrip))  -- keep only alphabetic chars
 
 singleCharSurvey :: String -> [(Char,Int)] 
 singleCharSurvey "" = []

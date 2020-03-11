@@ -1,131 +1,83 @@
--- Maggie Horton
--- CS-231 Winter 2020
--- Haskell Lab 3 - Strings.hs
--- For each line of input file, program will:
-    -- Print the line number (last line first)  
-    -- Print the line which was input. 
-    -- Print the line with the words in reverse order. 
-    -- Print the number of words for this line.
-    -- Print the count of each alphabetical character for the line.
--- After, the program prints total number of words and frequency of 
--- each alphabetic character in the entire file
-
 module Main where
 
 import Data.Char
-import Data.Function
 import Data.List
 import System.Environment
-import System.IO
 
-initPair = [('0',0)] -- temp value for starting to find char frequencies
-
--- formatting/output global values
-brFlag = 7 -- flag for inserting newlines
-es = "" -- empty string
-lblFreq = "Letter frequency displayed as (character, frequency):" -- char frequency label
-lblWc = "Word count: " -- word count label
-nld = "\n\n" -- double new line
-nls = "\n" -- single new line
-pPair = "\n\t  " -- put before frequency pairs
-pLine ="\n  " -- put before line data/output
-
--- main function of the file which reads in the contents of a file,
--- processes it, then writes the required output into a second file.
--- input & output file names are specified in the command line
 main = do
-    fNames <- getArgs
-    fContent <- readFile (fNames!!0)
-    let outName = fNames!!1 -- name of file to write to
-    let fLines = lines fContent -- get content as string list
-    let totalWordCount = length (words fContent) -- get file word count
-    let revLines = reverse fLines -- reverse line order
-    let allAlpha = stripAndSort (unlines fLines) -- setup file contents for processing
-    let fileFreq = drop 1 (getCharFreq (length allAlpha) allAlpha initPair) -- get frequencies of letters & remove initial filler pair
-    let formFreq = formatFreq (length fileFreq) es fileFreq brFlag -- formatted letter frequency
-    
-    writeFile outName es -- clear past file contents
-    appendWithLineCount revLines (length fLines) 0 outName
-    appendFile outName (nld ++ "FOR ENTIRE FILE\n" ++ 
-                        lblWc ++ (show totalWordCount) ++ 
-                        nls ++ lblFreq ++ pPair ++ formFreq ++ 
-                        nld)
-    
+    names <- getArgs
+    text <- readFile (names!!0)
 
--- this function finds the required data and then
--- appends said data to the end of the file
--- data includes: original line, line with reversed word
--- order, word count, line number & frequency of each
--- letter in the line
-appendWithLineCount revLines count idx foName = do
-    if count == 0
+    let outFName = names!!1 
+    let fLines = lines text 
+    let wc = length (words text) 
+    let rFLines = reverse fLines
+    let letters = getUpperOnly (unlines fLines)
+    let letterLen = length letters 
+    
+    let dummy = [('+',999)]
+    let fileFreq = drop 1 (letterAppearance letterLen letters dummy )
+    let formFreq = outputFormatter (length fileFreq) "" fileFreq 
+    
+    writeFile outFName ""
+    processAppend rFLines (length fLines) 0 outFName
+    appendFile outFName ("\n\nFor whole file\n" ++  "Word count: " ++ (show wc) ++ "\n"++ formFreq ++ "\n")
+
+getUpperOnly :: String -> String
+getUpperOnly toStrip = upperChars
+    where
+        up = map toUpper toStrip
+        lettersOnly = filter isLetter up
+        upperChars = sort lettersOnly      
+
+letterAppearance :: Int -> [Char] -> [(Char, Int)] -> [(Char, Int)]
+letterAppearance 0 inLine tupList = tupList
+letterAppearance len inLine tupList = freqPair
+    where
+        fChar = inLine!!0
+        less = filter (/= fChar) inLine
+        lessLen = length less
+        upTupList = tupList ++ (helper inLine)
+        freqPair = letterAppearance  lessLen less upTupList
+        
+        
+helper :: String -> [(Char,Int)] 
+helper "" = [] 
+helper inLine = tupList
+    where
+        fChar = inLine!!0
+        less = filter (/= fChar) inLine
+        inLnLen = length inLine
+        lessLen = length less
+        appearRate = inLnLen - lessLen 
+        tupList = [(fChar, appearRate)]
+        
+              
+outputFormatter :: Int -> [Char] -> [(Char, Int)] -> [Char]
+outputFormatter 0 freqOutput freqPair = freqOutput
+outputFormatter len freqOutput freqPair = appearOutput
+    where
+        out = freqOutput ++ "\t" ++ [fst (freqPair!!0)] ++ " appears " ++ (show(snd (freqPair!!0))) ++ " time(s)\n"
+        shorter = drop 1 freqPair
+        sLen = length shorter 
+        appearOutput = outputFormatter sLen out shorter 
+
+
+processAppend rFLines lineCount pos outFName = do
+    if lineCount == 0
         then return()
         else do
-            let origWords = words (revLines!!idx)  -- line order fed in reverse, but word order still the same per line
-            let revWords = unwords (reverse origWords)  -- reverse word order in line
-            let sortedAlpha = stripAndSort (unwords origWords)  -- stripped non-alpha chars & sorted
-            let charFreq = drop 1 (getCharFreq (length sortedAlpha) sortedAlpha initPair)
-            let formatted = formatFreq (length charFreq) es charFreq brFlag -- formatted letter frequency
-            let fOutput = nls ++ "LINE " ++ (show count) ++ 
-                         pLine  ++ "Original: " ++ (unwords origWords) ++
-                         pLine  ++ "Reversed: " ++ revWords ++ 
-                         pLine  ++ lblWc ++ (show (length origWords)) ++
-                         pLine  ++ lblFreq ++ pPair ++ formatted ++ nld
-            appendFile foName fOutput -- append contents to the end of the output file
-            appendWithLineCount revLines (count - 1) (idx + 1) foName -- append to file until no lines left
+            let inpWords = words (rFLines!!pos)  
+            let reversed = unwords (reverse inpWords)  
+            let letters = getUpperOnly (unwords inpWords)
+            let letterLen = length letters
+            let dummy = [('+',999)]  
+            let appearance = drop 1 (letterAppearance  letterLen letters dummy)
+            let appearOutput = outputFormatter (length appearance) "" appearance 
+            let output = "\nLine no. " ++ (show lineCount) ++ "\nLine input: " ++ (unwords inpWords) ++ "\nReveresed word order: " ++ reversed ++  "\nWord lineCount: " ++ (show (length inpWords)) ++ "\n" ++ appearOutput ++ "\n"
+            appendFile outFName output 
+            processAppend rFLines (lineCount - 1) (pos + 1) outFName 
 
--- keep only alphabetic chars & convert all to lowercase
--- used in the process of outputting letter frequencies
-stripAndSort :: String -> String
-stripAndSort toStrip = sort (filter isLetter (map toLower toStrip))   
+  
 
 
--- finds the frequency of each letter per line or file
--- sends back a list of tuples, (letter, frequency)
-getCharFreq :: Int -> [Char] -> [(Char, Int)] -> [(Char, Int)]
-getCharFreq 0 line pairs = pairs -- base case
-getCharFreq len line pairs = freqPair
-    where
-        chopped = filter (/= (line!!0)) line
-        updatedPairs = pairs ++ (freqHelper line)
-        freqPair = getCharFreq (length chopped) chopped updatedPairs
-
-
--- helper function used in finding the frequencies of
--- each letter
-freqHelper :: String -> [(Char,Int)] 
-freqHelper "" = [] -- base case
-freqHelper line = pairs
-    where
-        chopped = filter (/= (line!!0)) line
-        diff = (length line) - (length chopped)
-        pairs = [((line!!0), diff)]
-
-        
--- used to format letter frequencies so that the frequencies
--- aren't just output as a list of tuples        
-formatFreq :: Int -> [Char] -> [(Char, Int)] -> Int -> [Char]
-formatFreq 0 freqOutput freqPair nlFlag = freqOutput
-formatFreq len freqOutput freqPair nlFlag = formatted
-    where
-        fElem = freqPair!!0 -- frequency pair
-        char = [fst fElem] -- letter
-        freq = (show(snd fElem)) -- times letter appears
-        eParen = getEndParen len -- closing parethesis, either with or without trailing comma
-        eSep = fst (getEndSep nlFlag) -- end line separator, either \n or blank
-        upFlag = snd (getEndSep nlFlag) -- updated newline flag val
-        out = freqOutput ++ "(" ++ char ++ "," ++ freq ++ eParen ++ eSep -- formatted output
-        shorter = drop 1 freqPair -- remove first element in list 
-        sLen = length shorter 
-        formatted = formatFreq sLen out shorter upFlag -- keep formatting until list is empty
-
-
--- determines whether or not to put a comma after a frequency pair
-getEndParen :: Int -> String
-getEndParen 1 = ")"
-getEndParen len = "), "
-
--- determines if a newline needs to be placed after frequency pair
-getEndSep :: Int -> (String, Int)
-getEndSep 0 = ("\n    " , brFlag)
-getEndSep count = ("", (count-1))

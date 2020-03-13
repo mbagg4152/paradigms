@@ -1,190 +1,151 @@
 
-Line no. 5
-Line input: Sphinx of black quartz judge my vow.
-Reveresed word order: vow. my judge quartz black of Sphinx
-Word lineCount: 7
-	A appears 2 time(s)
-	B appears 1 time(s)
-	C appears 1 time(s)
-	D appears 1 time(s)
-	E appears 1 time(s)
-	F appears 1 time(s)
-	G appears 1 time(s)
-	H appears 1 time(s)
-	I appears 1 time(s)
-	J appears 1 time(s)
-	K appears 1 time(s)
-	L appears 1 time(s)
-	M appears 1 time(s)
-	N appears 1 time(s)
-	O appears 2 time(s)
-	P appears 1 time(s)
-	Q appears 1 time(s)
-	R appears 1 time(s)
-	S appears 1 time(s)
-	T appears 1 time(s)
-	U appears 2 time(s)
-	V appears 1 time(s)
-	W appears 1 time(s)
-	X appears 1 time(s)
-	Y appears 1 time(s)
-	Z appears 1 time(s)
+Line no. 10
+	Original line input:
+		ONE two thrEE four f1Ve six seven eight nine ten
+	Reveresed word order:
+		ten nine eight seven six f1Ve four thrEE two ONE
+	Word count for line = 10
+	Letter appearances in line:
+		E appears 9 time(s).	F appears 2 time(s).	G appears 1 time(s).
+		H appears 2 time(s).	I appears 3 time(s).	N appears 5 time(s).
+		O appears 3 time(s).	R appears 2 time(s).	S appears 2 time(s).
+		T appears 4 time(s).	U appears 1 time(s).	V appears 2 time(s).
+		W appears 1 time(s).	X appears 1 time(s).
 
+####################################################################################
+
+Line no. 9
+	Original line input:
+		one Two three 4our five $ix seven eight nine
+	Reveresed word order:
+		nine eight seven $ix five 4our three Two one
+	Word count for line = 9
+	Letter appearances in line:
+		E appears 8 time(s).	F appears 1 time(s).	G appears 1 time(s).
+		H appears 2 time(s).	I appears 4 time(s).	N appears 4 time(s).
+		O appears 3 time(s).	R appears 2 time(s).	S appears 1 time(s).
+		T appears 3 time(s).	U appears 1 time(s).	V appears 2 time(s).
+		W appears 1 time(s).	X appears 1 time(s).
+
+####################################################################################
+
+Line no. 8
+	Original line input:
+		ONE two thrEE four f1Ve six seven eight
+	Reveresed word order:
+		eight seven six f1Ve four thrEE two ONE
+	Word count for line = 8
+	Letter appearances in line:
+		E appears 7 time(s).	F appears 2 time(s).	G appears 1 time(s).
+		H appears 2 time(s).	I appears 2 time(s).	N appears 2 time(s).
+		O appears 3 time(s).	R appears 2 time(s).	S appears 2 time(s).
+		T appears 3 time(s).	U appears 1 time(s).	V appears 2 time(s).
+		W appears 1 time(s).	X appears 1 time(s).
+
+####################################################################################
+
+Line no. 7
+	Original line input:
+		one Two three 4our five $ix seven
+	Reveresed word order:
+		seven $ix five 4our three Two one
+	Word count for line = 7
+	Letter appearances in line:
+		E appears 6 time(s).	F appears 1 time(s).
+		H appears 1 time(s).	I appears 2 time(s).	N appears 2 time(s).
+		O appears 3 time(s).	R appears 2 time(s).	S appears 1 time(s).
+		T appears 2 time(s).	U appears 1 time(s).	V appears 2 time(s).
+		W appears 1 time(s).	X appears 1 time(s).
+
+####################################################################################
+
+Line no. 6
+	Original line input:
+		ONE two thrEE four f1Ve six
+	Reveresed word order:
+		six f1Ve four thrEE two ONE
+	Word count for line = 6
+	Letter appearances in line:
+		E appears 4 time(s).	F appears 2 time(s).
+		H appears 1 time(s).	I appears 1 time(s).	N appears 1 time(s).
+		O appears 3 time(s).	R appears 2 time(s).	S appears 1 time(s).
+		T appears 2 time(s).	U appears 1 time(s).	V appears 1 time(s).
+		W appears 1 time(s).	X appears 1 time(s).
+
+####################################################################################
+
+Line no. 5
+	Original line input:
+		one Two three 4our five
+	Reveresed word order:
+		five 4our three Two one
+	Word count for line = 5
+	Letter appearances in line:
+		E appears 4 time(s).	F appears 1 time(s).	H appears 1 time(s).
+		I appears 1 time(s).	N appears 1 time(s).	O appears 3 time(s).
+		R appears 2 time(s).	T appears 2 time(s).	U appears 1 time(s).
+		V appears 1 time(s).	W appears 1 time(s).
+
+####################################################################################
 
 Line no. 4
-Line input: Waltz, nymph, for quick jigs vex Bud.
-Reveresed word order: Bud. vex jigs quick for nymph, Waltz,
-Word lineCount: 7
-	A appears 1 time(s)
-	B appears 1 time(s)
-	C appears 1 time(s)
-	D appears 1 time(s)
-	E appears 1 time(s)
-	F appears 1 time(s)
-	G appears 1 time(s)
-	H appears 1 time(s)
-	I appears 2 time(s)
-	J appears 1 time(s)
-	K appears 1 time(s)
-	L appears 1 time(s)
-	M appears 1 time(s)
-	N appears 1 time(s)
-	O appears 1 time(s)
-	P appears 1 time(s)
-	Q appears 1 time(s)
-	R appears 1 time(s)
-	S appears 1 time(s)
-	T appears 1 time(s)
-	U appears 2 time(s)
-	V appears 1 time(s)
-	W appears 1 time(s)
-	X appears 1 time(s)
-	Y appears 1 time(s)
-	Z appears 1 time(s)
+	Original line input:
+		ONE two thrEE four
+	Reveresed word order:
+		four thrEE two ONE
+	Word count for line = 4
+	Letter appearances in line:
+		E appears 3 time(s).
+		F appears 1 time(s).	H appears 1 time(s).	N appears 1 time(s).
+		O appears 3 time(s).	R appears 2 time(s).	T appears 2 time(s).
+		U appears 1 time(s).	W appears 1 time(s).
 
+####################################################################################
 
 Line no. 3
-Line input: The five boxing wizards jumped quickly.
-Reveresed word order: quickly. jumped wizards boxing five The
-Word lineCount: 6
-	A appears 1 time(s)
-	B appears 1 time(s)
-	C appears 1 time(s)
-	D appears 2 time(s)
-	E appears 3 time(s)
-	F appears 1 time(s)
-	G appears 1 time(s)
-	H appears 1 time(s)
-	I appears 4 time(s)
-	J appears 1 time(s)
-	K appears 1 time(s)
-	L appears 1 time(s)
-	M appears 1 time(s)
-	N appears 1 time(s)
-	O appears 1 time(s)
-	P appears 1 time(s)
-	Q appears 1 time(s)
-	R appears 1 time(s)
-	S appears 1 time(s)
-	T appears 1 time(s)
-	U appears 2 time(s)
-	V appears 1 time(s)
-	W appears 1 time(s)
-	X appears 1 time(s)
-	Y appears 1 time(s)
-	Z appears 1 time(s)
+	Original line input:
+		one Two three
+	Reveresed word order:
+		three Two one
+	Word count for line = 3
+	Letter appearances in line:
+		E appears 3 time(s).	H appears 1 time(s).
+		N appears 1 time(s).	O appears 2 time(s).	R appears 1 time(s).
+		T appears 2 time(s).	W appears 1 time(s).
 
+####################################################################################
 
 Line no. 2
-Line input: Jackdaws love my sphinx of black quartz.
-Reveresed word order: quartz. black of sphinx my love Jackdaws
-Word lineCount: 7
-	A appears 4 time(s)
-	B appears 1 time(s)
-	C appears 2 time(s)
-	D appears 1 time(s)
-	E appears 1 time(s)
-	F appears 1 time(s)
-	H appears 1 time(s)
-	I appears 1 time(s)
-	J appears 1 time(s)
-	K appears 2 time(s)
-	L appears 2 time(s)
-	M appears 1 time(s)
-	N appears 1 time(s)
-	O appears 2 time(s)
-	P appears 1 time(s)
-	Q appears 1 time(s)
-	R appears 1 time(s)
-	S appears 2 time(s)
-	T appears 1 time(s)
-	U appears 1 time(s)
-	V appears 1 time(s)
-	W appears 1 time(s)
-	X appears 1 time(s)
-	Y appears 1 time(s)
-	Z appears 1 time(s)
+	Original line input:
+		ONE two
+	Reveresed word order:
+		two ONE
+	Word count for line = 2
+	Letter appearances in line:
+		E appears 1 time(s).	N appears 1 time(s).	O appears 2 time(s).
+		T appears 1 time(s).	W appears 1 time(s).
 
+####################################################################################
 
 Line no. 1
-Line input: Quick wafting zephyrs vex bold Jim.
-Reveresed word order: Jim. bold vex zephyrs wafting Quick
-Word lineCount: 6
-	A appears 1 time(s)
-	B appears 1 time(s)
-	C appears 1 time(s)
-	D appears 1 time(s)
-	E appears 2 time(s)
-	F appears 1 time(s)
-	G appears 1 time(s)
-	H appears 1 time(s)
-	I appears 3 time(s)
-	J appears 1 time(s)
-	K appears 1 time(s)
-	L appears 1 time(s)
-	M appears 1 time(s)
-	N appears 1 time(s)
-	O appears 1 time(s)
-	P appears 1 time(s)
-	Q appears 1 time(s)
-	R appears 1 time(s)
-	S appears 1 time(s)
-	T appears 1 time(s)
-	U appears 1 time(s)
-	V appears 1 time(s)
-	W appears 1 time(s)
-	X appears 1 time(s)
-	Y appears 1 time(s)
-	Z appears 1 time(s)
+	Original line input:
+		one
+	Reveresed word order:
+		one
+	Word count for line = 1
+	Letter appearances in line:
+		E appears 1 time(s).
+		N appears 1 time(s).	O appears 1 time(s).
 
+####################################################################################
 
+Entire file
+	File word count = 55
+	Letter appearances in the entire file:
+		E appears 46 time(s).	F appears 10 time(s).	G appears 3 time(s).
+		H appears 11 time(s).	I appears 13 time(s).	N appears 19 time(s).
+		O appears 26 time(s).	R appears 15 time(s).	S appears 7 time(s).
+		T appears 21 time(s).	U appears 7 time(s).	V appears 10 time(s).
+		W appears 9 time(s).	X appears 5 time(s).
 
-For whole file
-Word count: 33
-	A appears 9 time(s)
-	B appears 5 time(s)
-	C appears 6 time(s)
-	D appears 6 time(s)
-	E appears 8 time(s)
-	F appears 5 time(s)
-	G appears 4 time(s)
-	H appears 5 time(s)
-	I appears 11 time(s)
-	J appears 5 time(s)
-	K appears 6 time(s)
-	L appears 6 time(s)
-	M appears 5 time(s)
-	N appears 5 time(s)
-	O appears 7 time(s)
-	P appears 5 time(s)
-	Q appears 5 time(s)
-	R appears 5 time(s)
-	S appears 6 time(s)
-	T appears 5 time(s)
-	U appears 8 time(s)
-	V appears 5 time(s)
-	W appears 5 time(s)
-	X appears 5 time(s)
-	Y appears 5 time(s)
-	Z appears 5 time(s)
-
+####################################################################################

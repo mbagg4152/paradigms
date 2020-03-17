@@ -8,73 +8,70 @@ import Data.List
 
 
 main = do
-    fiName <- getArgs
-    fiContents <- readFile (fiName !! 0)
-    let fiLines = lines fiContents
-
-    let dimen = read (fiLines !! 0) :: Int
-    putStrLn ("Board size: " ++ (show dimen))
-
-    let noDimens = delAt fiLines 0
-    coords <- procLines noDimens 0 (length noDimens) dimen []
-    
+    fname <- getArgs
+    fcontent <- readFile (fname !! 0)
+    let flines = lines fcontent
+    let kSize = read (flines !! 0) :: Int
+    putStrLn ("Board size: " ++ (show kSize))
+    let subCnt = delAt flines 0
+    coords <- procLines subCnt 0 (length subCnt) kSize []
     let sc = sort coords
     print sc
 
 findSubsets :: Int -> Int -> [[Int]]
-findSubsets lim size = subsets
+findSubsets lim size = sub
     where
         legal = listConcat (getLegalVals lim []) size
-        subs = genLgSubset size legal
-        subsets = sort (uniqLists subsets 0)
+        subsets = genLgSubset size legal
+        sub = sort (uniqLists subsets 0)
 
-procLines :: [String] -> Int -> Int -> Int -> [(String, Int)] -> IO [(String,Int)]
+procLines :: [String] -> Int -> Int -> Int -> [(String,Int)] -> IO [(String,Int)]
 procLines lines idx count size coords = do
     if count == 0
         then return coords
         else do
-            let thisLine = (lines !! idx)
-            let possible = findVals thisLine size
-            let numsOnly = map digitToInt (filter isDigit thisLine)
-            let goal = numsOnly !! (li numsOnly)
-            
-            ioPair <- possPairs (words thisLine) possible
-            let pairs = sort (nub ioPair) 
-            
-            putStrLn ("cage size: " ++ (show (thisLine !! 0)) ++ " op: " ++  (show (thisLine !! (li thisLine))) ++ 
-                     " value: " ++ (show goal) ++ " combos: " ++ (show possible) ++ "\n")
-            procLines lines (idx + 1) (count - 1) size (coords ++ pairs)
+            let cLine = (lines !! idx)
+            let sol = findVals cLine size
+            let allnum = map digitToInt (filter isDigit cLine)
+            let reach = allnum !! (li allnum)
+            pairIO <- possiblePairs (words cLine) sol
+            let pairs = sort (nub(pairIO)) 
+            let adCords = coords ++ pairs
+            putStrLn ("cage size: " ++ (show (cLine !! 0)) ++ " op: " ++ 
+                     (show (cLine !! (li cLine))) ++ " value: " ++ 
+                     (show reach) ++ " combos: " ++ (show sol) ++ "\n")
+            procLines lines (idx+1) (count-1) size adCords
 
-possPairs :: [String] -> [[Int]] -> IO [(String, Int)]
-possPairs str vals  = do
+possiblePairs :: [String] -> [[Int]] -> IO [(String,Int)]
+possiblePairs str vals  = do
     let size = (read (str !! 0))
     let coord = str !! 1
     let val = (read (str !! 2))
     if size == 1
         then return [(coord, val)]
         else do
-            let noSize = delAt str 0
-            let noOp = delAt noSize (li noSize)
+            let noSze = delAt str 0
+            let noOp = delAt noSze (li noSze)
             let coordsOnly = delAt noOp (li noOp)
-            coordPairs <- outerPairHelper (permutations coordsOnly) vals [] 0
+            coordPairs <- pairHelper (permutations coordsOnly) vals [] 0
             return (coordPairs)
         
-outerPairHelper :: [[String]] -> [[Int]] -> [(String, Int)] -> Int -> IO [(String, Int)]
-outerPairHelper str vals pairs idx = do
+pairHelper :: [[String]] -> [[Int]] -> [(String,Int)] -> Int -> IO [(String,Int)]
+pairHelper str vals pairs idx = do
     let len = length vals
     if len == idx
         then return pairs 
         else do
-            pairOne <- innerPairHelper str (vals!!idx) []  0
-            outerPairHelper str vals (pairs ++ pairOne) (idx + 1)
+            pairOne <- pairer str (vals!!idx) []  0
+            pairHelper str vals (pairs ++ pairOne) (idx+1)
 
-innerPairHelper :: [[String]] -> [Int] -> [(String,Int)] -> Int -> IO [(String,Int)]
-innerPairHelper str vals pairs idx = do
+pairer :: [[String]] -> [Int] -> [(String,Int)] -> Int -> IO [(String,Int)]
+pairer str vals pairs idx = do
     let len = length str
     if len == idx
         then return (pairs)
         else do
-            innerPairHelper str vals (pairs ++ (zip (str !! idx) vals)) (idx + 1)
+            pairer str vals (pairs ++ (zip (str !! idx) vals)) (idx+1)
 
 findVals ::  [Char] -> Int -> [[Int]] 
 findVals list size
@@ -87,76 +84,77 @@ doSub :: [Char] -> Int -> [[Int]]
 doSub chars size = list
     where 
         intList = map digitToInt (filter isDigit chars)
-        result = intList !! (li intList)
+        res = intList!!(li intList)
         sets = findSubsets size (intList !!0) 
-        list = subHelper result sets []
+        list = subHelper res sets []
  
 subHelper :: Int -> [[Int]] -> [[Int]] -> [[Int]]
-subHelper goal [] accum = accum
-subHelper goal sets accum = matches
+subHelper reach [] succ = succ
+subHelper reach sets succ = matches
     where
-        valid = accum ++ (checkPerms goal (permutations (sets !! 0)) [])
-        matches = subHelper goal (delAt sets 0) valid
+        good = succ ++ (lookAtPerms reach (permutations (sets!!0)) [] )
+        matches = subHelper reach (delAt sets 0) good
 
-checkPerms :: Int -> [[Int]] -> [[Int]] -> [[Int]]
-checkPerms goal [] accum  = accum 
-checkPerms goal perms accum 
-    | result == goal = checkPerms goal choppedPerms (accum  ++ [cur])
-    | result /= goal = checkPerms goal choppedPerms accum 
-    | otherwise = checkPerms goal choppedPerms accum 
+lookAtPerms :: Int -> [[Int]] -> [[Int]] -> [[Int]]
+lookAtPerms reach [] valid = valid
+lookAtPerms reach perms valid
+    | res == reach = lookAtPerms reach upPerm good
+    | res /= reach = lookAtPerms reach upPerm valid
+    | otherwise = lookAtPerms reach upPerm valid
     where
-        cur = perms !! 0    
-        chopped = delAt (delAt cur 0) 0
-        choppedPerms = filter (/= cur) perms
-        result = abs (minus ((cur !! 0) - (cur !! 1)) 0 chopped (length chopped)) 
+        cur = perms!!0    
+        shortened = delAt (delAt cur 0) 0
+        upPerm = filter (/= cur) perms
+        good = valid ++ [cur]
+        res = abs (minus ((cur!!0) - (cur!!1)) 0 shortened (length shortened)) 
     
 minus :: Int -> Int -> [Int] -> Int -> Int
 minus total idx list len
     | len == 0 = total
-    | len == 1 = total - (list !! (len - 1))
-    | otherwise = minus (total - (list !! idx)) (idx + 1) list (len - 1)       
+    | len == 1 = total - (list!!(len-1))
+    | otherwise = minus (total - (list!!idx)) (idx+1) list (len-1)       
 
 doAdd :: [Char] -> Int -> [[Int]]
 doAdd chars size = list
     where 
         intList = map digitToInt (filter isDigit chars)
-        result = intList!!((length intList)-1)
+        res = intList!!((length intList)-1)
         sets = findSubsets size (intList!!0)
-        list = addHelper sets [] result 0
+        list = addHelper sets [] res 0
 
 addHelper :: [[Int]] -> [[Int]] -> Int -> Int -> [[Int]]
-addHelper list accum goal idx 
-    | (li list) == idx = accum
-    | summed == goal = addHelper list (accum ++ [tmp]) goal (idx + 1)
-    | summed /= goal = addHelper list accum goal (idx + 1)
+addHelper list succ reach idx 
+    | ((length list)-1) == idx = succ
+    | summed == reach = addHelper list (succ++[tmp]) reach (idx+1)
+    | summed /= reach = addHelper list succ reach (idx+1)
     where 
-        tmp = list !! idx
+        tmp = list!!idx
         summed = sum tmp
 
 getLegalVals :: Int -> [Int] -> [Int]
 getLegalVals 0 intList = intList
-getLegalVals size intList = sort ([size] ++ (getLegalVals (size - 1) intList))
+getLegalVals size intList = sort ([size] ++ (getLegalVals (size -1) intList))
 
 genLgSubset :: Int -> [Int] -> [[Int]]
 genLgSubset 0 _ = [[]]
 genLgSubset _ [] = []
-genLgSubset lim (cur : next) = [cur : subs | subs <- genLgSubset (lim - 1) next] ++ genLgSubset lim next 
+genLgSubset lim (cur:next) = 
+    [cur : subs | subs <- genLgSubset (lim-1) next] ++ genLgSubset lim next 
 
+listConcat :: [Int] -> Int -> [Int]
+listConcat list times = sort (concat (replicate times list))
 
 uniqLists :: Ord a => Eq a => [[a]] -> Int -> [[a]]
 uniqLists [] idx = []
 uniqLists list idx
-    | idx == (li list) = list
-    | idx /= (li list) = uniList
+    | idx == ((length list)-1) = list
+    | idx /= ((length list)-1) = uList
     | otherwise = []
     where
-        inner = sort (list !! idx)
-        chopped = filter (/= inner) list
-        uniList = uniqLists ([inner] ++ chopped) (idx + 1)
-
-
-listConcat :: [Int] -> Int -> [Int]
-listConcat list times = sort (concat (replicate times list))
+        tList = sort(list!!idx)
+        rList = filter (/= tList) list
+        nList = [tList] ++ rList
+        uList = uniqLists nList (idx+1)
 
 delAt :: [a] -> Int -> [a]
 delAt list idx = take idx list ++ drop (idx + 1) list

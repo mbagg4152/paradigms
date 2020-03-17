@@ -8,14 +8,18 @@ import Data.List
 
 
 main = do
-    fname <- getArgs
-    fcontent <- readFile (fname !! 0)
-    let flines = lines fcontent
-    let kSize = read (flines !! 0) :: Int
-    putStrLn ("Board size: " ++ (show kSize))
-    let subCnt = delAt flines 0
-    coords <- procLines subCnt 0 (length subCnt) kSize []
+    fName <- getArgs
+    fcontent <- readFile (fName !! 0)
+    let fLines = lines fcontent
+    
+    let dimens = read (fLines !! 0) :: Int
+    putStrLn ("Board size: " ++ (show dimens))
+    
+    let noDimen = delAt fLines 0
+    coords <- procLines noDimen 0 (length noDimen) dimens []
+    
     let sc = sort coords
+    putStrLn "\n\n"
     print sc
 
 findSubsets :: Int -> Int -> [[Int]]
@@ -39,7 +43,7 @@ procLines lines idx count size coords = do
             let adCords = coords ++ pairs
             putStrLn ("cage size: " ++ (show (cLine !! 0)) ++ " op: " ++ 
                      (show (cLine !! (li cLine))) ++ " value: " ++ 
-                     (show reach) ++ " combos: " ++ (show sol) ++ "\n")
+                     (show reach) ++ " combos: " ++ (show sol) )
             procLines lines (idx+1) (count-1) size adCords
 
 possiblePairs :: [String] -> [[Int]] -> IO [(String,Int)]
@@ -118,17 +122,17 @@ doAdd :: [Char] -> Int -> [[Int]]
 doAdd chars size = list
     where 
         intList = map digitToInt (filter isDigit chars)
-        res = intList!!((length intList)-1)
+        res = intList !! (li intList)
         sets = findSubsets size (intList!!0)
         list = addHelper sets [] res 0
 
 addHelper :: [[Int]] -> [[Int]] -> Int -> Int -> [[Int]]
 addHelper list succ reach idx 
-    | ((length list)-1) == idx = succ
-    | summed == reach = addHelper list (succ++[tmp]) reach (idx+1)
-    | summed /= reach = addHelper list succ reach (idx+1)
+    | (li list) == idx = succ
+    | summed == reach = addHelper list (succ ++ [tmp]) reach (idx + 1)
+    | summed /= reach = addHelper list succ reach (idx + 1)
     where 
-        tmp = list!!idx
+        tmp = list !! idx
         summed = sum tmp
 
 getLegalVals :: Int -> [Int] -> [Int]
@@ -139,7 +143,7 @@ genLgSubset :: Int -> [Int] -> [[Int]]
 genLgSubset 0 _ = [[]]
 genLgSubset _ [] = []
 genLgSubset lim (cur:next) = 
-    [cur : subs | subs <- genLgSubset (lim-1) next] ++ genLgSubset lim next 
+    [cur : subs | subs <- genLgSubset (lim - 1) next] ++ genLgSubset lim next 
 
 listConcat :: [Int] -> Int -> [Int]
 listConcat list times = sort (concat (replicate times list))
@@ -148,13 +152,13 @@ uniqLists :: Ord a => Eq a => [[a]] -> Int -> [[a]]
 uniqLists [] idx = []
 uniqLists list idx
     | idx == ((length list)-1) = list
-    | idx /= ((length list)-1) = uList
+    | idx /= ((length list)-1) = uniqueLol
     | otherwise = []
     where
-        tList = sort(list!!idx)
-        rList = filter (/= tList) list
-        nList = [tList] ++ rList
-        uList = uniqLists nList (idx+1)
+        tmpList = sort(list !! idx)
+        shortened = filter (/= tmpList) list
+        newList = [tmpList] ++ shortened
+        uniqueLol = uniqLists newList (idx + 1)
 
 delAt :: [a] -> Int -> [a]
 delAt list idx = take idx list ++ drop (idx + 1) list

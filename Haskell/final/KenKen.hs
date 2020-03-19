@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wall -fprof-auto -fbreak-on-exception -rtsopts  #-}
+
 module Main where
 
 import Data.Char
@@ -5,10 +7,10 @@ import Data.Function
 import Data.List
 import Data.Ord
 import System.Environment
+import Misc
 
-brFlag = 1 -- flag for inserting newlines
-colNames = "abcdef"
 
+main :: IO()
 main = do
     fName <- getArgs
     fcontent <- readFile (fName !! 0)
@@ -17,23 +19,68 @@ main = do
     putStrLn ("Board size: " ++ (show dimens))
     let noDimen = delAt fLines 0
     coords <- process noDimen 0 (length noDimen) dimens []
-    let sc = sort coords
     let groups = groupValues coords
-    let coordstr = form (length sc) brFlag sc ""
+    let numGroup = sort (coordConvert groups [] 0)
     let groupStr = form (length groups) brFlag groups ""
+    let byCol = listifyGrid groups 0 []
+    let byRow = listifyGrid numGroup 0 []
+    let rowChunk = chunkUp dimens byRow
+    let colChunk = chunkUp dimens byCol
     putStrLn ("\n\n" ++ groupStr)
+    putStrLn ("By row:\n" ++ (formGrid rowChunk 0 ""))
+    putStrLn ("By col:\n" ++ (formGrid colChunk 0 ""))
 
-groupValues ::  [(String, Int)] -> [(String, [Int])]
-groupValues = map (\l -> (fst . head $ l, map snd l)) . groupBy ((==) `on` fst) . sortBy (comparing fst)
-
-findSubsets :: Int -> Int -> [[Int]]
-findSubsets lim size = sub
+    
+validate :: [[Int]] -> Int -> Int -> [[Int]] -> [[Int]]
+validate [] idx size accum = accum
+validate seqs idx size accum 
+    | ((li seqs)+1) == idx = accum
+    | otherwise = validate seqs (idx + 1) size (accum ++ (checkRows chunks [] 0))
     where
-        legal = repConcat (getLegalVals lim []) size
-        subsets = setGen size legal
-        sub = sort (uniqLists subsets 0)
+        tmp = seqs !! idx
+        chunks = chunkUp size tmp
 
-process :: [String] -> Int -> Int -> Int -> [(String,Int)] -> IO [(String,Int)]
+
+checkRows :: [[Int]] -> [[Int]] -> Int -> [[Int]]
+checkRows rows accum idx 
+    | ((li rows)+1) == idx = accum
+    | (length uni) == (length tmp) = checkRows rows (accum ++ [tmp]) (idx + 1) 
+    | otherwise = checkRows rows (accum) (idx + 1) 
+    where 
+        tmp = rows !! idx
+        uni = nub (tmp)
+
+pickSomeGrids :: [[[Int]]] -> Int -> [[[[Int]]]] -> [[[[Int]]]]
+pickSomeGrids chunks idx accum 
+    | (li chunks) == idx = accum ++ [[picked]] 
+    | otherwise = pickSomeGrids chunks (idx + 1) (accum ++ [[picked]])
+    where picked = parse (chunks !! (idx)) 0 []
+
+parse :: [[Int]] -> Int -> [[Int]] -> [[Int]]
+parse line idx accum 
+    | (li line) ==  idx = accum ++ picked
+    | otherwise = parse line (idx + 1) (accum ++ picked)
+    where picked = [pickNum (line !! (idx)) idx]
+
+pickNum :: [Int] -> Int -> [Int]
+pickNum list idx 
+    | (li list) > idx = [list !! avail]
+    | otherwise = [list !! avail]
+    where avail = idx `rem` ((li list) + 1)  
+
+
+formGrid :: [[[Int]]] -> Int -> String -> String
+formGrid grid idx accum 
+    | ((li grid) + 1) == idx = accum ++ "\n"
+    | otherwise = formGrid grid (idx + 1) (accum ++ (show (grid !! idx)) ++ "\n")
+
+
+formGrids :: [[[[Int]]]] -> Int -> String -> String
+formGrids grid idx accum
+    | ((li grid) + 1) == idx = accum ++ "\n"
+    | otherwise = formGrids grid (idx + 1) (accum ++ ((formGrid (grid !! idx) 0 "")) )
+
+process :: [String] -> Int -> Int -> Int -> [(String, Int)] -> IO [(String, Int)]
 process line idx count size coords = do
     if count == 0
         then return coords
@@ -47,153 +94,41 @@ process line idx count size coords = do
                       " val: " ++ (show reach) ++ " combos: " ++ (show vCombos))
             process line (idx + 1) (count - 1) size (coords ++ pairs)
 
-possiblePairs :: [String] -> [[Int]] -> Int -> IO [(String,Int)]
-possiblePairs str vals target = do
-    let size = (read (str !! 0)) :: Int
-    let coord = str !! 1
-    if size == 1
-        then return [(coord, target)]
-        else do
-            let noSze = delAt str 0
-            let noOp = delAt noSze (li noSze)
-            let coordsOnly = delAt noOp (li noOp)
-            coordPairs <- outerPairHelper (permutations coordsOnly) vals [] 0
-            return (coordPairs)
 
-outerPairHelper :: [[String]] -> [[Int]] -> [(String,Int)] -> Int -> IO [(String,Int)]
-outerPairHelper str vals pairs idx = do
-    let len = length vals
-    if len == idx
-        then return pairs 
-        else do
-            pairOne <- innerPairHelper str (vals !! idx) [] 0
-            outerPairHelper str vals (pairs ++ pairOne) (idx + 1)
 
-innerPairHelper :: [[String]] -> [Int] -> [(String,Int)] -> Int -> IO [(String,Int)]
-innerPairHelper str vals pairs idx = do
-    let len = length str
-    if len == idx
-        then return (pairs)
-        else do innerPairHelper str vals (pairs ++ (zip (str !! idx) vals)) (idx + 1)
+stringifyGrid :: [(String, [Int])] -> Int -> String -> String
+stringifyGrid coordVals idx accum 
+    | (((li coordVals) == idx) && ((length vals) == 1)) = (accum ++ sVal)
+    | (((li coordVals) == idx) && ((length vals) /= 1)) = (accum ++ "*")
+    | (length vals) == 1 = stringifyGrid coordVals (idx + 1) (accum ++ sVal) 
+    | otherwise = stringifyGrid coordVals (idx + 1) (accum ++ "*")
+    where
+      tmp = coordVals !! idx 
+      vals = snd tmp
+      sVal = show (vals !! 0)
 
-coordConvert :: String -> String
-coordConvert alphaCoord = numCol ++ row
-    where    
-        col = alphaCoord !! 0
-        row = [alphaCoord !! 1]
-        numCol = show ((indexOf col colNames 0) + 1)
+listifyGrid :: [(String, [Int])] -> Int -> [[Int]] -> [[Int]]
+listifyGrid coordVals idx accum 
+    | (li coordVals) == idx = accum ++ vals
+    | otherwise = listifyGrid coordVals (idx + 1) (accum ++ vals)
+    where vals = [snd (coordVals !! idx)]
+ 
+    
+coordConvert ::  [(String, [Int])] -> [(String, [Int])] -> Int -> [(String, [Int])]
+coordConvert coords accum idx 
+    | (li coords) == idx = accum ++ [(newCoord, (snd tmp))]
+    | otherwise = coordConvert coords (accum ++ [(newCoord, (snd tmp))]) (idx + 1) 
+    where
+        tmp = coords !! idx 
+        numCol = show ((indexOf ((fst tmp) !! 0) colNames 0) + 1)
+        newCoord =  [(fst tmp) !! 1] ++ numCol
 
-indexOf :: Eq a => a -> [a] -> Int -> Int
-indexOf elem arr idx 
-    | elem == (arr !! idx) = idx
-    | elem /= (arr !! idx) = indexOf elem arr (idx + 1)
-    | otherwise = -1
+
       
 findVals ::  [Char] -> Int -> [[Int]] 
 findVals list size
-    | op == '-' = doSub list size
+    | (op == '-') = doSub list size
     | op == '+' = doAdd list size
     | otherwise = [[(digitToInt op)]]
     where op = list !! (li list)
-
-doSub :: String -> Int -> [[Int]]
-doSub chars size = list
-    where 
-        intList = map digitToInt (filter isDigit chars)
-        target = getCageGoal chars
-        sets = findSubsets size (intList !! 0) 
-        list = subHelper target sets []
- 
-subHelper :: Int -> [[Int]] -> [[Int]] -> [[Int]]
-subHelper target [] accum = accum
-subHelper target sets accum = subHelper target (delAt sets 0) updated
-    where updated = accum ++ (checkPerms target (permutations (sets !! 0)) [] )
-
-checkPerms :: Int -> [[Int]] -> [[Int]] -> [[Int]]
-checkPerms target [] valid = valid
-checkPerms target perms valid
-    | total == target = checkPerms target lessPerms updated
-    | total /= target = checkPerms target lessPerms valid
-    | otherwise = checkPerms target lessPerms valid
-    where
-        cur = perms !! 0    
-        lessPerms = filter (/= cur) perms
-        updated = valid ++ [cur]
-        total =  foldl (-) (cur !! 0) (delAt cur 0)  
-
-doAdd :: [Char] -> Int -> [[Int]]
-doAdd chars size = list
-    where 
-        intList = map digitToInt (filter isDigit chars)
-        goal = getCageGoal chars
-        sets = findSubsets size (intList!!0)
-        list = addHelper sets [] goal 0
-
-addHelper :: [[Int]] -> [[Int]] -> Int -> Int -> [[Int]]
-addHelper list accum target idx 
-    | (li list) == idx = accum
-    | summed == target = addHelper list (accum ++ [(list !! idx)]) target (idx + 1)
-    | summed /= target = addHelper list accum target (idx + 1)
-    where summed = sum (list !! idx)
-      
-getCageGoal :: String -> Int
-getCageGoal str 
-    | (read (wList !! 0)) == 1 = read (wList !! (li wList))
-    | str == "" = 0
-    | otherwise = target
-    where
-        wList = words str    
-        rmOp = delAt wList (li wList)
-        target = read (rmOp !! (li rmOp)) :: Int
-
-getLegalVals :: Int -> [Int] -> [Int]
-getLegalVals 0 intList = intList
-getLegalVals size intList = sort ([size] ++ (getLegalVals (size -1) intList))
-
-setGen :: Int -> [Int] -> [[Int]]
-setGen 0 _ = [[]]
-setGen _ [] = []
-setGen lim (cur:next) = [cur : subs | subs <- setGen (lim - 1) next] ++ setGen lim next 
-
-repConcat :: [Int] -> Int -> [Int]
-repConcat list times = sort (concat (replicate times list))
-
-uniqLists :: Ord a => Eq a => [[a]] -> Int -> [[a]]
-uniqLists [] idx = []
-uniqLists list idx
-    | idx == ((length list)-1) = list
-    | idx /= ((length list)-1) = uniqueLol
-    | otherwise = []
-    where
-        tmpList = sort(list !! idx)
-        shortened = filter (/= tmpList) list
-        newList = [tmpList] ++ shortened
-        uniqueLol = uniqLists newList (idx + 1)
-
-delAt :: [a] -> Int -> [a]
-delAt list idx = take idx list ++ drop (idx + 1) list
-
-li :: [a] -> Int
-li str = (length str) - 1
-
-form :: Show a => Int -> Int -> [(String, a)] -> String -> String
-form 0 nlf pairs accum = accum
-form len nlf pairs accum = formed
-    where 
-        f = pairs !! 0
-        coord = fst f
-        num = (show (snd f))
-        es = fst (endsep nlf)
-        nnlf = snd (endsep nlf)
-        out = accum ++ "(" ++ coord ++ ", " ++ num ++ ") " ++ es
-        cut = drop 1 pairs
-        formed = form (length cut) nnlf cut out
-
-endsep :: Int -> (String, Int)
-endsep 1 = ("\n" , brFlag)
-endsep cnt = ("", (cnt - 1))
-
-
-
-
 

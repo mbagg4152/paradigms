@@ -19,9 +19,7 @@ possiblePairs str vals target = do
     if size == 1
         then return [(coord, target)]
         else do
-            let noSze = delAt str 0
-            let noOp = delAt noSze (li noSze)
-            let coordsOnly = delAt noOp (li noOp)
+            let coordsOnly = init (init (tail str)) -- remove cage size, operator and total
             coordPairs <- outerPairHelper (permutations coordsOnly) vals [] 0
             return (coordPairs)
 
@@ -44,8 +42,8 @@ innerPairHelper str vals pairs idx = do
 
 doSub :: String -> Size -> [[Int]]
 doSub chars size 
-    | cage > 3 = subHelper (getCageGoal chars) setSm []
-    | otherwise = subHelper (getCageGoal chars) sets [] 
+    | cage > 3 = subHelper (getCageTarget chars) setSm []
+    | otherwise = subHelper (getCageTarget chars) sets [] 
     where 
         cage = (digitToInt ((filter isDigit chars) !! 0))
         sets = findSubsets size cage
@@ -66,10 +64,10 @@ checkPerms target perms valid
     where
         cur = perms !! 0    
         lessPerms = filter (/= cur) perms
-        total =  abs (foldl (-) (cur !! 0) (delAt cur 0))  
+        total =  abs (foldl (-) (cur !! 0) (tail cur))  
 
 doAdd :: String -> Size -> [[GData]]
-doAdd chars size = addHelper sets [] (getCageGoal chars) 0
+doAdd chars size = addHelper sets [] (getCageTarget chars) 0
     where
         cage = (digitToInt ((filter isDigit chars) !! 0))
         sets = findSubsets size (cage)
@@ -94,19 +92,28 @@ indexOf lmnt arr idx
     | lmnt /= (arr !! idx) = indexOf lmnt arr (idx + 1)
     | otherwise = -1
 
-getCageGoal :: Inputln -> Target
-getCageGoal str 
-    | (read (wList !! 0)) == 1 = read (wList !! (li wList))
+pIndexOf :: Eq a => (a,a) -> [((a,a),[a])] -> Index -> Index
+pIndexOf lmnt arr idx 
+    | lmnt == f = idx
+    | lmnt /= f = pIndexOf lmnt arr (idx + 1)
+    | otherwise = -1
+    where
+        tmp = arr !! idx
+        f = fst tmp 
+
+
+getCageTarget :: Inputln -> Target
+getCageTarget str 
+    | (read (head wList)) == 1 = read (last wList)
     | str == "" = 0
     | otherwise = target
     where
         wList = words str    
-        rmOp = delAt wList (li wList)
-        target = read (rmOp !! (li rmOp)) :: Int
+        target = read (last (init wList)) :: Int
 
 getLegalVals :: Size -> [Int] -> [Int]
 getLegalVals 0 accum = accum
-getLegalVals size accum = sort ([size] ++ (getLegalVals (size -1) accum))
+getLegalVals size accum = sort ([size] ++ (getLegalVals (size - 1) accum))
 
 makeGrid :: Size -> Count -> String -> String
 makeGrid size count accum 
@@ -141,8 +148,7 @@ uniqLists list idx
     | otherwise = []
     where
         tmpList = sort (list !! idx)
-        shortened = filter (/= tmpList) list
-        uniqueLL = uniqLists ([tmpList] ++ shortened) (idx + 1)
+        uniqueLL = uniqLists ([tmpList] ++ (filter (/= tmpList) list)) (idx + 1)
 
 groupValues ::  [(ColRow, GData)] -> [(ColRow, [GData])]
 groupValues = map (\list -> (fst.head $ list, map snd list)) 
@@ -151,9 +157,9 @@ groupValues = map (\list -> (fst.head $ list, map snd list))
 
 chunkUp :: Index -> [a] -> [[a]]
 chunkUp _ [] = []
-chunkUp n xs =
-    let (ys, zs) = splitAt n xs
-    in  ys : chunkUp n zs
+chunkUp count ns =
+    let (os, ps) = splitAt count ns
+    in  os : chunkUp count ps
 
 
 delAt :: [a] -> Index -> [a]
@@ -179,7 +185,57 @@ endsep :: Count -> (String, Int)
 endsep 1 = ("\n" , brFlag)
 endsep cnt = ("", (cnt - 1))
 
+formGrid :: [[[GData]]] -> Index -> String -> String
+formGrid grid idx accum 
+    | ((li grid) + 1) == idx = accum ++ "\n"
+    | otherwise = formGrid grid (idx + 1) (accum ++ (show (grid !! idx)) ++ "\n")
 
+listifyGrid :: [(a, [GData])] -> Index -> [[GData]] -> [[GData]]
+listifyGrid coordVals idx accum 
+    | (li coordVals) == idx = accum ++ vals
+    | otherwise = listifyGrid coordVals (idx + 1) (accum ++ vals)
+    where vals = [snd (coordVals !! idx)]
+ 
+      
+findVals ::  Inputln -> Size -> [[Int]] 
+findVals list size
+    | (op == '-') = doSub list size
+    | op == '+' = doAdd list size
+    | otherwise = [[(digitToInt op)]]
+    where op = last list
+
+
+coordPair ::  [(ColRow, [GData])] -> [((Col, Row), [GData])] -> Index -> [((Col, Row), [GData])]
+coordPair coords accum idx 
+    | (li coords) == idx = accum ++ [((numCol, irow), (snd tmp))]
+    | otherwise = coordPair coords (accum ++ [((numCol, irow), (snd tmp))]) (idx + 1) 
+    where
+        tmp = coords !! idx
+        loc = fst tmp 
+        irow = ((read [loc !! 1]) - 1)
+        numCol = ((indexOf (head loc) colNames 0))
+
+revCoordPair ::  [(ColRow, [GData])] -> [((Row, Col), [GData])] -> Index -> [((Row, Col), [GData])]
+revCoordPair coords accum idx 
+    | (li coords) == idx = accum ++ [((irow, numCol), (snd tmp))]
+    | otherwise = revCoordPair coords (accum ++ [((irow, numCol), (snd tmp))]) (idx + 1) 
+    where
+        tmp = coords !! idx
+        loc = fst tmp 
+        irow = ((read [loc !! 1]) - 1)
+        numCol = ((indexOf (head loc) colNames 0))
+
+uniqGrid :: Ord a => Eq a => [((a,a), [a])] -> Index -> [((a,a), [a])]
+uniqGrid list idx
+    | idx == (li list) = list
+    | idx /= (li list) = uniqueLL
+    | otherwise = []
+    where
+        tmp = list !! idx
+        tmpTup = fst tmp
+        tmpLs = snd tmp
+        shortened = filter (/= tmp) list
+        uniqueLL = uniqGrid ([(tmpTup,tmpLs)] ++ shortened) (idx + 1)
 
 type Count = Int
 type Col = Int

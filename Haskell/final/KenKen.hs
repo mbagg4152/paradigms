@@ -2,7 +2,6 @@
 
 module Main where
 
-import Data.Char
 import Data.List
 import System.Environment
 import Misc
@@ -19,18 +18,52 @@ main = do
     coords <- process noDimen 0 (length noDimen) dimens []
     
     let groups = groupValues coords   
-    let gr = coordPair groups [] 0 
+    let gr =  sort (revCoordPair groups [] 0)
     let grs = form (length gr) brFlag gr ""
-    putStrLn ("\n\n" ++ grs)
+    putStrLn ("\n(row, col):\n" ++ grs)
     
-    let listyGrid = listifyGrid groups 0 []
+    let listyGrid = listifyGrid gr 0 []
     let fListy = formGrid (chunkUp dimens listyGrid) 0 "" 
-    putStrLn ("Order is by column a .. end:\n" ++ fListy)
+    putStrLn ("Displayed by row 1 .. end (preserves order of graphical grid):\n" ++ fListy)
+    let n = getSurr (0,0) dimens
+    putStrLn (show n)
 
-formGrid :: [[[GData]]] -> Index -> String -> String
-formGrid grid idx accum 
-    | ((li grid) + 1) == idx = accum ++ "\n"
-    | otherwise = formGrid grid (idx + 1) (accum ++ (show (grid !! idx)) ++ "\n")
+rmn :: [((Col, Row), [GData])] -> Size -> [((Col, Row), [GData])]
+rmn [((col, row), gdata)] dimen
+   -- | len == 1 = upcut surrounding val 
+    | otherwise = [((col, row), gdata)]
+    where
+        len = length gdata
+        val = gdata !! 0 
+        surrounding = getSurr (col,row) dimen
+
+
+
+getgd :: (Col, Row) -> [((Col, Row), [GData])] -> [GData]
+getgd (c,r) dList = snd (dList !! idx) 
+    where idx = pIndexOf (c,r) dList 0
+
+
+
+eqpair :: (Col, Row) -> (Col, Row) -> Bool
+eqpair (c1,r1) (c2,r2) = ((c1 == c2) && (r1 == r2))
+
+
+
+getSurr :: (Col, Row) -> Size -> [(Col, Row)]
+getSurr (c,r) s
+    | (c,r) == (0,0) = [rn,dn]
+    | (c,r) == (0, (s- 1)) = [tn,rn]
+    | (c,r) == ((s - 1), 0) = [ln,dn]
+    | (c,r) == ((s - 1), (s - 1)) =  [tn,ln]    
+    | otherwise = [rn,ln,dn,tn]
+    where
+        rn = ((c+1),r)
+        ln = ((c-1),r)
+        dn = (c,(r+1))
+        tn = (c,(r-1))
+
+
 
 process :: [Inputln] -> Index -> Count -> Size -> [(ColRow, GData)] -> IO [(ColRow, GData)]
 process line idx count size coords = do
@@ -39,36 +72,26 @@ process line idx count size coords = do
         else do
             let cLine = (line !! idx)
             let vCombos = findVals cLine size
-            let reach = getCageGoal cLine
+            let reach = getCageTarget cLine
             pairIO <- possiblePairs (words cLine) vCombos reach
             let pairs = sort (nub(pairIO)) 
             putStrLn ("cage: " ++ (show (cLine !! 0)) ++ " op: " ++  (show (cLine !! (li cLine))) ++ 
                       " val: " ++ (show reach) ++ " combos: " ++ (show vCombos))
             process line (idx + 1) (count - 1) size (coords ++ pairs)
 
-listifyGrid :: [(ColRow, [GData])] -> Index -> [[GData]] -> [[GData]]
-listifyGrid coordVals idx accum 
-    | (li coordVals) == idx = accum ++ vals
-    | otherwise = listifyGrid coordVals (idx + 1) (accum ++ vals)
-    where vals = [snd (coordVals !! idx)]
- 
-      
-findVals ::  Inputln -> Size -> [[Int]] 
-findVals list size
-    | (op == '-') = doSub list size
-    | op == '+' = doAdd list size
-    | otherwise = [[(digitToInt op)]]
-    where op = list !! (li list)
 
-
-coordPair ::  [(ColRow, [GData])] -> [((Col, Row), [GData])] -> Index -> [((Int, Int), [Int])]
-coordPair coords accum idx 
-    | (li coords) == idx = accum ++ [(newCoord, (snd tmp))]
-    | otherwise = coordPair coords (accum ++ [(newCoord, (snd tmp))]) (idx + 1) 
+mkList :: [((Col, Row), [GData])] -> [((Col, Row), [GData])] -> [((Col, Row), [GData])]
+mkList [] accum = accum
+mkList items accum 
+    | len == 1 =  mkList lessItems (accum ++ [tmp]) 
+    | otherwise = mkList lessItems accum
     where
-        tmp = coords !! idx
-        loc = fst tmp 
-        scol = loc !! 0
-        irow = ((read [loc !! 1]) - 1)
-        numCol = ((indexOf scol colNames 0))
-        newCoord = (numCol, irow)
+        tmp = items !! 0
+        vals =  snd tmp
+        len = length vals
+        lessItems = delAt items 0
+
+chooseIndex :: [GData] -> Int -> Index
+chooseIndex gdlist num 
+    | (li gdlist) < (num) = (num `rem` 2)
+    | otherwise = num

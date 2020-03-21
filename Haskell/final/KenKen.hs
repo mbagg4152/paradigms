@@ -1,8 +1,16 @@
-{-# OPTIONS_GHC -Wall -fprof-auto -fbreak-on-exception -rtsopts  #-}
+{-# OPTIONS_GHC 
+    -Wall 
+    -fprof-auto 
+    -fbreak-on-exception 
+    -rtsopts  
+#-}
 
 module Main where
 
+import Data.Char
+import Data.Function
 import Data.List
+import Data.Ord
 import System.Environment
 import Misc
 
@@ -18,14 +26,14 @@ main = do
     coords <- process noDimen 0 (length noDimen) dimens []
     
     let groups = groupValues coords   
-    let gr =  sort (revCoordPair groups [] 0)
+    let gr =  sort (map revCoordPair groups)
     let grs = form (length gr) brFlag gr ""
     putStrLn ("\n(row, col):\n" ++ grs)
     
     let listyGrid = listifyGrid gr 0 []
     let fListy = formGrid (chunkUp dimens listyGrid) 0 "" 
     putStrLn ("Displayed by row 1 .. end (preserves order of graphical grid):\n" ++ fListy)
-    let n = getSurr (0,0) dimens
+    let n = getSurr (2,2) dimens
     putStrLn (show n)
 
 rmn :: [((Col, Row), [GData])] -> Size -> [((Col, Row), [GData])]
@@ -57,11 +65,10 @@ getSurr (c,r) s
     | (c,r) == ((s - 1), 0) = [ln,dn]
     | (c,r) == ((s - 1), (s - 1)) =  [tn,ln]    
     | otherwise = [rn,ln,dn,tn]
-    where
-        rn = ((c+1),r)
-        ln = ((c-1),r)
-        dn = (c,(r+1))
-        tn = (c,(r-1))
+    where rn = ((c + 1), r)
+          ln = ((c - 1), r)
+          dn = (c, (r + 1))
+          tn = (c, (r - 1))
 
 
 
@@ -95,3 +102,6 @@ chooseIndex :: [GData] -> Int -> Index
 chooseIndex gdlist num 
     | (li gdlist) < (num) = (num `rem` 2)
     | otherwise = num
+
+
+

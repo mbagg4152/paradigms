@@ -8,14 +8,14 @@ import           Data.Ord
 import           System.Environment
 
 brFlag :: Int
-brFlag = 1
+brFlag = 3
 
 colNames :: [Char]
 colNames = "abcdef"
 
 possiblePairs :: [PosStr] -> [[Possible]] -> Target -> IO [(PosStr, Possible)]
 possiblePairs str vals target = do
-  let size = (read (str !! 0)) :: Int
+  let size = (read (head str)) :: Int
   if size == 1
     then return [((str !! 1), target)]
     else do
@@ -37,56 +37,53 @@ innerPairer str vals accum idx = do
     else do innerPairer str vals (accum ++ (zip (str !! idx) vals)) (idx + 1)
 
 doSub :: String -> Size -> [[Int]]
-doSub chars size
-  | cage > 3 = subHelper (getCageTarget chars) (findSubsets size (cage - 1)) []
-  | otherwise = subHelper (getCageTarget chars) (findSubsets size cage) []
-  where
-    cage = (digitToInt (head (filter isDigit chars)))
+doSub chars maxNum 
+  | cage > 3 = subHelper (getCageTarget chars) (findSubsets maxNum (cage-1)) []
+  | otherwise = subHelper (getCageTarget chars) (findSubsets maxNum cage) []
+  where cage = (digitToInt (head (filter isDigit chars)))
 
 subHelper :: Target -> [[Int]] -> [[Possible]] -> [[Possible]]
 subHelper target [] accum = accum
 subHelper target sets accum = subHelper target (delAt sets 0) updated
-  where
-    updated = accum ++ (checkPerms target (permutations (sets !! 0)) [])
+  where updated = accum ++ (validate target ([(head sets)]) [])
 
-checkPerms :: Target -> [[Int]] -> [[Possible]] -> [[Possible]]
-checkPerms target [] valid = valid
-checkPerms target perms valid
-  | total == target = checkPerms target lessPerms (valid ++ [cur])
-  | otherwise = checkPerms target lessPerms valid
-  where
-    cur = head perms
-    lessPerms = filter (/= cur) perms
-    total = abs (foldl (-) (cur !! 0) (tail cur))
+validate :: Target -> [[Int]] -> [[Possible]] -> [[Possible]]
+validate target [] valid = valid
+validate target perms valid
+  | total == target = validate target lessPerms (valid ++ [cur])
+  | otherwise = validate target lessPerms valid
+  where cur = head perms
+        lessPerms = filter (/= cur) perms
+        total = abs (foldl (-) (head cur) (tail cur))
 
 doAdd :: String -> Size -> [[Possible]]
-doAdd chars size = addHelper sets [] (getCageTarget chars) 0
-  where
-    cage = (digitToInt (head (filter isDigit chars)))
-    sets = findSubsets size (cage)
+doAdd chars maxNum 
+  | cage > 3 = addHelper (findSubsets maxNum (cage)) [] (getCageTarget chars) 0
+  | otherwise = addHelper (findSubsets maxNum cage) [] (getCageTarget chars) 0
+  where cage = (digitToInt (head (filter isDigit chars)))
+
 
 addHelper :: [[Int]] -> [[Possible]] -> Target -> Index -> [[Possible]]
 addHelper [] accum target idx = accum
 addHelper list accum target idx
   | (li list) == idx = accum
-  | (sum (list !! idx)) == target = addHelper list (accum ++ [(list !! idx)]) target (idx + 1)
-  | (sum (list !! idx)) /= target = addHelper list accum target (idx + 1)
+  | ((sum (list !! idx)) == target) && ((li list) /= idx) = addHelper list (accum ++ [(list !! idx)]) target (idx + 1)
+  | ((sum (list !! idx)) /= target) && ((li list) /= idx) = addHelper list accum target (idx + 1)
 
 findSubsets :: Size -> Size -> [[Possible]]
-findSubsets maxx size = sort (uniqLists (setGen size legal) 0)
-  where
-    legal = repConcat (getLegalVals maxx) size
-
+findSubsets maxNum cageSize = sort (uniqLists (setGen cageSize legal) 0)
+  where legal = repConcat (getLegalVals maxNum) cageSize
+   
 indexOf :: Eq a => a -> [a] -> Index -> Index
 indexOf lmnt arr idx
   | lmnt == (arr !! idx) = idx
   | lmnt /= (arr !! idx) = indexOf lmnt arr (idx + 1)
   | otherwise = -1
 
-pIndexOf :: Eq a => (a, a) -> [((a, a), [a])] -> Index -> Index
-pIndexOf lmnt arr idx
+indexOfPair :: Eq a => (a, a) -> [((a, a), [a])] -> Index -> Index
+indexOfPair lmnt arr idx
   | lmnt == (fst (arr !! idx)) = idx
-  | lmnt /= (fst (arr !! idx)) = pIndexOf lmnt arr (idx + 1)
+  | lmnt /= (fst (arr !! idx)) = indexOfPair lmnt arr (idx + 1)
   | otherwise = -1
 
 getCageTarget :: Inputln -> Target
@@ -94,9 +91,8 @@ getCageTarget str
   | (read (head wList)) == 1 = read (last wList)
   | str == "" = 0
   | otherwise = target
-  where
-    wList = words str
-    target = read (last (init wList)) :: Int
+  where wList = words str
+        target = read (last (init wList)) :: Int
 
 getLegalVals :: Size -> [Int]
 getLegalVals 0    = []
@@ -125,17 +121,17 @@ setGen _ [] = []
 setGen lim (cur : next) = [cur : subs | subs <- setGen (lim - 1) next] ++ setGen lim next
 
 repConcat :: [Int] -> Count -> [Int]
-repConcat list times = sort (concat (replicate times list))
+repConcat list times 
+  | times > 3 = sort (concat (replicate (times-2) list))
+  | otherwise = sort (concat (replicate times list))
 
 uniqLists :: Ord a => Eq a => [[a]] -> Index -> [[a]]
 uniqLists [] idx = []
 uniqLists list idx
-  | idx == (li list) = list
-  | idx /= (li list) = uniqueLL
-  | otherwise = []
-  where
-    tmpList = sort (list !! idx)
-    uniqueLL = uniqLists ([tmpList] ++ (filter (/= tmpList) list)) (idx + 1)
+  | idx < (li list) = uniqLists ([tmpList] ++ (filter (/= tmpList) list)) (idx + 1)
+  | otherwise = list
+  where tmpList = sort (list !! idx)
+ 
 
 groupValues :: [(PosStr, Possible)] -> [(PosStr, [Possible])]
 groupValues = map (\list -> (fst . head $ list, map snd list)) . groupBy ((==) `on` fst) . sortBy (comparing fst)
@@ -164,7 +160,7 @@ form len nlf pairs accum = formed
 
 endsep :: Count -> (String, Int)
 endsep 1   = ("\n", brFlag)
-endsep cnt = ("", (cnt - 1))
+endsep cnt = ("\t", (cnt - 1))
 
 formGrid :: [[[Possible]]] -> Index -> String -> String
 formGrid grid idx accum
@@ -186,13 +182,11 @@ findVals list size
 
 uniqGrid :: Ord a => Eq a => [((a, a), [a])] -> Index -> [((a, a), [a])]
 uniqGrid list idx
-  | idx == (li list) = list
-  | idx /= (li list) = uniqueLL
-  | otherwise = []
-  where
-    tmp = list !! idx
-    shortened = filter (/= tmp) list
-    uniqueLL = uniqGrid ([((fst tmp), (snd tmp))] ++ shortened) (idx + 1)
+  | idx < (li list) =  uniqGrid ([((fst tmp), (snd tmp))] ++ shortened) (idx + 1)
+  | otherwise = list
+  where tmp = list !! idx
+        shortened = filter (/= tmp) list
+    
 
 coordPair :: (PosStr, [Possible]) -> ((Col, Row), [Possible])
 coordPair coords = ((numCol, irow), (snd coords))

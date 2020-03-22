@@ -29,48 +29,39 @@
 
     coords <- process (tail fLines) 0 (length (tail fLines)) dimens []
     let groups = groupValues coords
-        gr = sort (map revCoordPair groups)
-        rgr= sort (map coordPair groups)
-        grs = form (length gr) brFlag gr ""
-        rgrs = form (length rgr) brFlag rgr ""
-    putStrLn ({- "\n(row, col):\n" ++ grs ++ -} "\n\n(col,row):\n" ++ rgrs)
+        revGrp = sort (map revCoordPair groups)
+        normGrp= sort (map coordPair groups)
+        revGStr = form (length revGrp) brFlag revGrp ""
+        normGStr = form (length normGrp) brFlag normGrp ""
+    putStrLn ({- "\n(row, col):\n" ++ revGStr ++ -} "\n\n(col,row):\n" ++ normGStr)
 
-    let listyGrid = listifyGrid gr 0 []
+    let listyGrid = listifyGrid revGrp 0 []
         smList = shortest listyGrid
         fListy = formGrid (chunkUp dimens listyGrid) 0 ""
-    --putStrLn ("\nDisplayed by row 1 .. end (preserves order of graphical grid):\n" ++ fListy)
     putStrLn ("\n"++ (show smList) ++ "\n")
-    let chk = checking 0 rgr dimens
-        schk = form (length chk) brFlag chk ""
-    putStrLn (show chk)
-
+    let checkData = checking 0 normGrp dimens
+        chDataStr = form (length checkData) brFlag checkData ""
+    putStrLn (show checkData)
 
   checking :: Index -> [((Col, Row), [Possible])] -> Size -> [((Col, Row), [Possible])]
-  checking idx dat dimens = r
-      where allCoord = fst (unzip dat)
-            allVals = snd (unzip dat)
-            small = shortest allVals
-            vIdx = indexOf small allVals  0
-            adj = getAdjacent (allCoord !! vIdx) (dimens)
-            accord = map (according dat) adj
-            sel = chooseIndex small 1
-            sdat = delAt dat vIdx
-            r = rmn (zip adj accord) sel
+  checking idx gridData dimens = removeFromAdjacent (zip adj accord) picked
+      where allCoord = fst (unzip gridData)
+            allVals = snd (unzip gridData)
+            shortList = shortest allVals
+            smIdx = indexOf shortList allVals  0
+            adj = getAdjacent (allCoord !! smIdx) (dimens)
+            accord = map (according gridData) adj
+            picked = chooseIndex shortList 1
+            gridDataLess = delAt gridData smIdx
 
-
-  rmn :: [((Col, Row), [Possible])] -> Target -> [((Col, Row), [Possible])]
-  rmn dat target = zip coord filt
+  removeFromAdjacent :: [((Col, Row), [Possible])] -> Target -> [((Col, Row), [Possible])]
+  removeFromAdjacent dat target = zip coord filt
       where coord = fst (unzip dat)
             val = snd (unzip dat)
             filt = map (filter (/= target)) val
 
-
-
-
-
   according :: [((Col, Row), [Possible])] -> (Col, Row) -> [Possible]
   according dat (ic, ir) = snd (dat !! (indexOfPair (ic, ir) dat 0))
-
 
   sameLengths :: [[a]] -> Bool
   sameLengths []     = True
@@ -180,7 +171,6 @@
     | otherwise = addHelper (findSubsets maxNum cage) [] (getCageTarget chars) 0
     where cage = (digitToInt (head (filter isDigit chars)))
 
-
   addHelper :: [[Int]] -> [[Possible]] -> Target -> Index -> [[Possible]]
   addHelper [] accum target idx = accum
   addHelper list accum target idx
@@ -250,7 +240,6 @@
     | otherwise = list
     where tmpList = sort (list !! idx)
 
-
   groupValues :: [(PosStr, Possible)] -> [(PosStr, [Possible])]
   groupValues = map (\list -> (fst . head $ list, map snd list)) . groupBy ((==) `on` fst) . sortBy (comparing fst)
 
@@ -269,12 +258,11 @@
   form :: (Read a, Read b, Show a, Show b) => Len -> Count -> [(a, b)] -> String -> String
   form 0 nlf pairs accum = accum
   form len nlf pairs accum = formed
-    where
-      coord = show (fst (head pairs))
-      num = show (snd (head pairs))
-      out = accum ++ "" ++ coord ++ " --> " ++ num ++ " " ++ (fst (endsep nlf))
-      cut = drop 1 pairs
-      formed = form (length cut) (snd (endsep nlf)) cut out
+    where coord = show (fst (head pairs))
+          num = show (snd (head pairs))
+          out = accum ++ "" ++ coord ++ " --> " ++ num ++ " " ++ (fst (endsep nlf))
+          cut = drop 1 pairs
+          formed = form (length cut) (snd (endsep nlf)) cut out
 
   endsep :: Count -> (String, Int)
   endsep 1   = ("\n", brFlag)
@@ -304,7 +292,6 @@
     | otherwise = list
     where tmp = list !! idx
           shortened = filter (/= tmp) list
-
 
   coordPair :: (PosStr, [Possible]) -> ((Col, Row), [Possible])
   coordPair coords = ((numCol, irow), (snd coords))

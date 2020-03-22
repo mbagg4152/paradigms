@@ -42,7 +42,7 @@ checking idx dat dimens = r
           allVals = snd (unzip dat)
           small = shortest allVals
           vIdx = indexOf small allVals  0
-          adj = getAdjacents (allCoord !! vIdx) (dimens)
+          adj = getAdjacent (allCoord !! vIdx) (dimens)
           accord = map (according dat) adj
           sel = chooseIndex small 1
           sdat = delAt dat vIdx
@@ -83,8 +83,8 @@ shortest (x:xs) = let s = shortest xs
 equalPairs :: (Col, Row) -> (Col, Row) -> Bool
 equalPairs (c1, r1) (c2, r2) = ((c1 == c2) && (r1 == r2))
 
-getAdjacents :: (Col, Row) -> Size -> [(Col, Row)]
-getAdjacents (c, r) s
+getAdjacent :: (Col, Row) -> Size -> [(Col, Row)]
+getAdjacent (c, r) s
   | (c, r) == (0, 0) = [right, below]
   | (c, r) == (0, (s - 1)) = [above, right]
   | (c, r) == ((s - 1), 0) = [left, below]
@@ -124,3 +124,4 @@ chooseIndex :: [Possible] -> Int -> Index
 chooseIndex gdlist num
   | (li gdlist) < (num) = (num `rem` 3)
   | otherwise = num
+

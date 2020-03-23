@@ -12,8 +12,13 @@
   import Data.List
   import Data.Ord
   import System.Environment
-  import System.Random
+  --import System.Random
   import Debug.Trace
+  import System.Log.Logger
+  import System.Log.Handler.Syslog
+  import System.Log.Handler.Simple
+  import System.Log.Handler (setFormatter)
+  import System.Log.Formatter
 
   brFlag :: Int
   brFlag = 4
@@ -21,15 +26,23 @@
   colNames :: [Char]
   colNames = "abcdef"
 
+  dtag :: [Char]
+  dtag = "db.db"
+
   main :: IO ()
   main = do
+    h <- fileHandler "debug.log" DEBUG 
+    updateGlobalLogger dtag (addHandler h)
+    updateGlobalLogger dtag (setLevel DEBUG)
     fName <- getArgs
-    fcontent <- readFile (fName !! 0)
+    let fNoRet = filter (/= '\r') (fName !! 0)
+    fcontent <- readFile fNoRet
     let fLines = lines fcontent
-        dimens = read (fLines !! 0) :: Int
+        fLineNoret = map (filter (/= '\r')) fLines
+        dimens = read (fLineNoret !! 0) :: Int
     putStrLn ("Board size: " ++ (show dimens))
 
-    coords <- process (tail fLines) 0 (length (tail fLines)) dimens []
+    coords <- process (tail fLineNoret) 0 (length (tail fLineNoret)) dimens []
     let groups = groupValues coords
         revGrp = sort (map rowColPair groups)
         normGrp = sort (map colRowPair groups)
@@ -42,23 +55,26 @@
         --fListy = formGrid (chunkUp dimens listyGrid) 0 ""
     --putStrLn ("\n"++ (show smList) ++ "\n")
     let byLen = sortBy (comparing (length . snd)) normGrp
-    --putStrLn ((form (length byLen) brFlag byLen "") ++ "\n\n")
+        lenList = chunkUp dimens (listifyGrid byLen 0 [])
+        lenStr = formGrid lenList 0 ""
+    putStrLn ("Possible val grid sorted by viable length then by coord:\n" ++ lenStr++"\n")
    
-    checkData <- runner byLen dimens
-    --walked <- walkPaths 0 0 byLen dimens byLen 
-    let chDataList = chunkUp dimens (listifyGrid (sort checkData) 0 [])
-        chDataStr = formGrid chDataList 0 ""
+    --checkData <- runner byLen dimens
+    walked <- walkPaths 0 0 byLen dimens byLen 
+    -- let chDataList = chunkUp dimens (listifyGrid (sort checkData) 0 [])
+    --     chDataStr = formGrid chDataList 0 ""
+    let wDataList = chunkUp dimens (listifyGrid (sort walked) 0 [])
+        wDataStr = formGrid wDataList 0 ""
 
-    putStrLn (chDataStr ++  "\n") 
+    --putStrLn (chDataStr ++  "\n") 
+    putStrLn (wDataStr ++  "\n") 
   
   runner :: [((Col, Row), [Viable])] -> Size -> IO [((Col, Row), [Viable])]
   runner byLen dimens = do
     checkData <- checking 0 0 byLen dimens []
     let chDataList = chunkUp dimens (listifyGrid (sort checkData) 0 [])
     let byCol = smush chDataList 0 []
-    --putStrLn ("bc: "++(show byCol))
-    let byRow = rearrange byCol 0 []
-    --putStrLn ("br: "++ (show byRow)) 
+    let byRow = rearrange byCol 0 [] 
     if (noInnerDupes byCol) && (noInnerDupes byRow)
       then return (checkData)
       else do  (runner byLen dimens)
@@ -99,53 +115,113 @@
             shortList = justVals !! xidx
             newExtra = if (extra > (li shortList)) then 0 else extra 
             adj = getAdjacent gridData thisCoord (dimens)
-        picked<-pick shortList
+        --picked<-pick shortList
+            picked = head shortList
         let sel =  if ((length shortList) > 1) then picked else head shortList
         let subAdj = (removeFromAdjacent adj sel)
             updl = (updateNew gridData subAdj [])
             spud = splitAt xidx updl
             thisShorter = [(thisCoord, [sel])]
             shorterUpdl = (fst spud) ++ thisShorter ++ (tail(snd spud))
-            chunkedUpdl = chunkUp dimens (listifyGrid (sort shorterUpdl) 0 [])
+
+            -- test: remove sort
+            chunkedUpdl = chunkUp dimens (listifyGrid (shorterUpdl) 0 [])
             byCol = smush chunkedUpdl 0 []
             byRow = rearrange byCol 0 []
             sortUpdl = sortBy (comparing (length . snd)) shorterUpdl
-            newIdx = indexOfPair thisCoord sortUpdl 0
+        debugM dtag ("[checking]"++"before indexOfPairCall: " ++ (show thisCoord) ++ " " ++ (show sortUpdl)) 
+        let newIdx = indexOfPair thisCoord sortUpdl 0
         if (noInnerDupes byCol) || (noInnerDupes byRow)
           then do checking (newIdx) (extra+1) sortUpdl dimens sortUpdl
           else do checking (newIdx + 1) (extra+1) sortUpdl dimens sortUpdl
 
   walkPaths :: Idx -> Idx -> [((Col, Row), [Viable])] -> Size -> [((Col, Row), [Viable])] ->  IO [((Col, Row), [Viable])]
-  walkPaths innerIdx idx gridData dimens builder = do
-    let xidx = if (idx == (length gridData)) then 0 else idx
-        justCoords = fst (unzip builder)
-        justVals = snd (unzip builder)
-        theseVals = justVals !! xidx
-    if (not (allSameLength justVals)) 
-      then do
-        let nInnerIdx = if (innerIdx == (li theseVals)) then 0 else innerIdx
-            outpicked = if ((length theseVals) == 1) then (head theseVals) else (theseVals !! nInnerIdx)
-            thisCoord = justCoords !! nInnerIdx
-            adj = getAdjacent gridData thisCoord dimens
-            updatedAdj = removeFromAdjacent adj outpicked
-            updatedList = updateNew gridData updatedAdj []
-        walkPaths (nInnerIdx+1) (idx+1) gridData dimens updatedList 
-      else do 
-        let chunkedUpdl = chunkUp dimens (listifyGrid (sort gridData) 0 [])
-            byCol = smush chunkedUpdl 0 []
-            byRow = rearrange byCol 0 []
-        if ((noInnerDupes byCol) && (noInnerDupes byRow)) 
-          then return (builder)
+  walkPaths full inner vgrid dimens builder = do
+    let fullLen = length vgrid
+        xfull = if ((full == fullLen) || (full < 0)) then 0 else full
+        
+    if ((xfull + 1) == fullLen)
+      then do 
+        debugM dtag "1. hit ((xfull + 1) == fullLen)"
+        walkPaths 0 (inner + 1) vgrid dimens builder
+      else do
+        debugM dtag "2. hit ELSE OF ((xfull + 1) == fullLen)"
+        let nfull = (xfull + 1)  
+            justMarks = fst (unzip vgrid)
+            justNums = snd (unzip vgrid)
+            theseNums = justNums !! xfull
+            nextNums = justNums !! nfull
+            thisMark = justMarks !! xfull
+            nextMark = justMarks !! nfull
+            numLen = length theseNums 
+            nxtLen = length nextNums
+            xinner = if ((numLen == 1) || (inner == numLen)) then 0 else inner
+            ninner = if ((nxtLen == 1) || (inner == nxtLen)) then 0 else inner
+            thisNum = theseNums !! xinner
+            nxtNum = nextNums !! ninner
+        if (thisNum == nxtNum)
+          then do 
+            debugM dtag "3. hit (thisNum == nxtNum)"
+            --debugM dtag ((show thisNum) ++ "==" ++(show nxtNum) ++ "\n") 
+            walkPaths (xfull + 1) (xinner) vgrid dimens builder
           else do 
-            let backCoords = fst (unzip gridData)
-                backVals = snd (unzip gridData)
-                theseBackVals = backVals !! (xidx-1)
-                thisBackCoord = backCoords !! (xidx-1)
-                picked = head theseBackVals
-                adj = getAdjacent gridData thisBackCoord dimens
-                updatedAdj = removeFromAdjacent adj picked
-                updatedList = updateNew gridData updatedAdj []
-            walkPaths innerIdx xidx gridData dimens updatedList
+            debugM dtag "4. hit ELSE OF (thisNum == nxtNum)"
+            -- debugM dtag ((show thisMark) ++ " " ++ (show thisNum) ++ ", " ++
+            --             (show nxtNum) ++ ". dimens:" ++ (show dimens) ++ "\n" ++
+            --             "> vgrid: " ++ (blah (ss vgrid)) ++ "\n") 
+            let adj  =  getAdjacent vgrid thisMark dimens
+            
+            -- debugM dtag ("> [walkPaths]" ++ " before removeFromAdjacent-call:\n" ++ 
+            --             "> adj: "++ (show adj) ++ 
+            --             "\n> thisNum: " ++ (show thisNum) ++ "\n")
+            let updatedAdj = removeFromAdjacent adj thisNum
+
+            -- debugM dtag ("> [walkPaths]"++" before updateNew-call:\n" ++ 
+            --             "> vgrid: "++ (blah (ss vgrid)) ++ 
+            --             "\n> updatedAdj: " ++ (show updatedAdj) ++ "\n")
+            let updat = updateNew vgrid updatedAdj []
+            -- debugM dtag ("> [walkPaths]"++" after updateNew-call & BEFORE slimming:\n" ++ 
+            --             "> updat: "++ (blah (ss updat))++ "\n")
+
+            let sidx = indexOfPair thisMark vgrid 0
+                spUpdat = splitAt sidx updat
+            -- debugM dtag ("> [walkPaths]"++" after splitting:\n" ++ 
+            --             "> spUpdat:\n"++ (blah (ss (fst spUpdat))) ++ "\n" ++
+            --             (blah (ss (snd spUpdat))) ++ "\n")
+            let thisShort = [(thisMark, [thisNum])]
+                shortUpdat = (fst spUpdat) ++ thisShort ++ (tail (snd spUpdat))
+
+            -- debugM dtag ("> [walkPaths]"++" after updateNew-call & slimming:\n" ++ 
+            --     "> shortUpdat: "++ (blah (ss shortUpdat))++ "\n")
+            let chunked = chunkUp dimens (listifyGrid shortUpdat 0 [])
+                byCol = smush chunked 0 []
+                byRow = rearrange byCol 0 []
+            
+            if (allSameLength justNums)
+              then do
+                debugM dtag "5. hit (allSameLength justNums)"     
+                if ((noInnerDupes byCol) && (noInnerDupes byRow))
+                  then do
+                    debugM dtag "6. hit ((noInnerDupes byCol) && (noInnerDupes byRow))"  
+                    return shortUpdat
+                  else do
+                    debugM dtag "7. hit ELSE OF ((noInnerDupes byCol) && (noInnerDupes byRow))" 
+                    walkPaths (xfull - 1) xinner shortUpdat dimens builder
+              else do 
+                debugM dtag "8. hit ELSE OF (allSameLength justNums)"
+                walkPaths (xfull + 1) (xinner+1) shortUpdat dimens builder
+
+  blah :: [Char] -> [Char]
+  blah line = (iinsert 81 '\t' (iinsert 80 '\n' line))
+  
+  ss :: (Ord a , Show a) => [a] -> [Char]
+  ss list = show (sort list)
+
+  iinsert :: Int -> a -> [a] -> [a]
+  iinsert n y xs = countdown n xs where
+    countdown 0 xs = y:countdown n xs -- reset to original n
+    countdown _ [] = []
+    countdown m (x:xs) = x:countdown (m-1) xs
 
   removeFromAdjacent :: [((Col, Row), [Viable])] -> Target -> [((Col, Row), [Viable])]
   removeFromAdjacent dat target = lUpd ++ shortGuys
@@ -162,6 +238,7 @@
     where
       fChunk = (head updated)
       fElem = fst fChunk
+      --debugM dtag ("[updateNew]"++" before indexOfPairCall: " ++ (show fElem) ++ " " ++ (show initList))
       pidx = indexOfPair fElem initList 0
       spl = splitAt (pidx) initList
       new = (fst spl) ++ [fChunk] ++ (tail (snd spl))
@@ -170,13 +247,13 @@
   according dat pair = dat !! idx
     where idx = indexOfPair pair dat 0
 
-  pick :: [Int] -> IO Int
-  pick list = do
-    rand <- randomRIO (0, (li list))
-    if (length list) == 1 
-      then return (head list)
-      else do
-        return (list !! rand)
+  -- pick :: [Int] -> IO Int
+  -- pick list = do
+  --   rand <- randomRIO (0, (li list))
+  --   if (length list) == 1 
+  --     then return (head list)
+  --     else do
+  --       return (list !! rand)
 
 
   allSameLength :: [[a]] -> Bool
@@ -204,15 +281,17 @@
     | equalPairs (c,r) (0,(d - 1)) = [above, right]
     | equalPairs (c,r) ((d - 1),0) = [below, left]
     | equalPairs (c,r) ((d - 1),(d - 1)) = [above, left]
-    | (c == (d - 1)) = [above, below, left]
-    | (c == 0) = [above, below, right]
-    | (r == (d - 1))  = [above, left, right]
-    | (r == 0) = [below, left, right]
+    | ((c == (d-1)) && noExtRow)  = [above, below, left]
+    | ((c == 0) && noExtRow) = [above, below, right]
+    | ((r == (d - 1)) && noExtCol)  = [above, left, right]
+    | ((r == 0) && noExtCol) = [below, left, right]
     | otherwise = [above, below, left, right]
     where right = according dat ((c+1), r)
           left = according dat ((c-1), r)
           below = according dat (c, (r+1))
           above = according dat (c, (r-1))
+          noExtRow = ((r /= 0) && (r /= (d - 1)))
+          noExtCol = ((c /= 0) && (c /= (d - 1)))
 
   process :: [Flne] -> Idx -> Count -> Size -> [(Mark, Viable)] -> IO [(Mark, Viable)]
   process line idx count size coords = do
@@ -307,10 +386,15 @@
     | otherwise = -1
 
   indexOfPair :: Eq a => (a, a) -> [((a, a), [a])] -> Idx -> Idx
-  indexOfPair item arr idx 
-    | item == (fst (arr !! idx)) = idx
-    | item /= (fst (arr !! idx)) = indexOfPair item arr (idx + 1)
-    | otherwise = -1
+  indexOfPair item arr idx
+    | ((li arr) == idx) && (item == thisPair) = idx
+    | ((li arr) == idx) && (item /= thisPair) =  -1
+    | item == thisPair = idx
+    | item /= thisPair = indexOfPair item arr (idx + 1)
+    | otherwise =   -1
+    where thisPair = (fst (arr !! idx)) 
+           
+          
 
   getCageTarget :: Flne -> Target
   getCageTarget str

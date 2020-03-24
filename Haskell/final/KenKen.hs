@@ -6,7 +6,7 @@
 {-# LANGUAGE ExplicitForAll #-}
 
   module Main where
-
+  import System.IO
   import Data.Char
   import Data.Function
   import Data.List
@@ -14,12 +14,8 @@
   import System.Environment
   --import System.Random
   import Debug.Trace
-  import System.Log.Logger
-  import System.Log.Handler.Syslog
-  import System.Log.Handler.Simple
-  import System.Log.Handler (setFormatter)
-  import System.Log.Formatter
-
+  --import Data.Tree
+  import Data.Maybe
   brFlag :: Int
   brFlag = 4
 
@@ -29,47 +25,305 @@
   dtag :: [Char]
   dtag = "db.db"
 
+  dbpath :: [Char]
+  dbpath = "debug.log"
+  
+  data Cell = F Int | P [Int] deriving (Show, Eq)
+  type Row  = [Cell]
+  type Grid = [Row]
+
+  
+
+
+
   main :: IO ()
   main = do
-    h <- fileHandler "debug.log" DEBUG 
-    updateGlobalLogger dtag (addHandler h)
-    updateGlobalLogger dtag (setLevel DEBUG)
+    writeFile dbpath ""
     fName <- getArgs
     let fNoRet = filter (/= '\r') (fName !! 0)
     fcontent <- readFile fNoRet
     let fLines = lines fcontent
         fLineNoret = map (filter (/= '\r')) fLines
         dimens = read (fLineNoret !! 0) :: Int
-    putStrLn ("Board size: " ++ (show dimens))
+    ps ("Board size: " ++ (s dimens))
 
     coords <- process (tail fLineNoret) 0 (length (tail fLineNoret)) dimens []
     let groups = groupValues coords
         revGrp = sort (map rowColPair groups)
         normGrp = sort (map colRowPair groups)
-        --revGStr = form (length revGrp) brFlag revGrp ""
         normGStr = form (length normGrp) brFlag normGrp ""
-    putStrLn ("\n\n(col,row):\n" ++ normGStr)
+    ps ("\n\nmade using coords (col,row):\n" ++ normGStr++ "\n")
 
-    --let --listyGrid = listifyGrid revGrp 0 []
-        --smList = shortest listyGrid
-        --fListy = formGrid (chunkUp dimens listyGrid) 0 ""
-    --putStrLn ("\n"++ (show smList) ++ "\n")
     let byLen = sortBy (comparing (length . snd)) normGrp
+        byMk = sortBy (comparing fst) normGrp
         lenList = chunkUp dimens (listifyGrid byLen 0 [])
         lenStr = formGrid lenList 0 ""
-    putStrLn ("Possible val grid sorted by viable length then by coord:\n" ++ lenStr++"\n")
-   
-    --checkData <- runner byLen dimens
-    walked <- walkPaths 0 0 byLen dimens byLen 
-    -- let chDataList = chunkUp dimens (listifyGrid (sort checkData) 0 [])
-    --     chDataStr = formGrid chDataList 0 ""
-    let wDataList = chunkUp dimens (listifyGrid (sort walked) 0 [])
-        wDataStr = formGrid wDataList 0 ""
+    
+    -- walked <- walkPaths 0 0 byLen dimens byLen 
+    -- let wDataList = chunkUp dimens (listifyGrid (sort walked) 0 [])
+    --     wDataStr = formGrid wDataList 0 ""
 
-    --putStrLn (chDataStr ++  "\n") 
-    putStrLn (wDataStr ++  "\n") 
+    let emg = mkEmpty dimens dimens
+        llen = idxList byLen 0 []
+        iGrid = initGrid 0 revGrp []
+        fGrid = chunkUp dimens iGrid
+        gridStr = dispGrid fGrid
+        fullGridStr = dispFullGrid fGrid dimens
+        
+
+    ps gridStr
+    --ps fullGridStr
+    let pruned = fromJust (traverse pruneCells fGrid)
+        prunedAgain = fromJust (traverse pruneCells pruned)
+
+    let shifted = transpose fGrid
+        colPruned = fromJust (traverse pruneCells shifted)
+    ps $ dispFullGrid pruned dimens
+    ps $ dispFullGrid colPruned dimens
+    ps $ s $ length pruned
+
+
+  initGrid :: Idx -> [((Int, Int), [Int])] -> Row -> Row
+  initGrid  idx dat accum
+    | (idx < gLen) && (numLen == 1) = initGrid (idx + 1) dat (accum ++ [fxInt])
+    | (idx < gLen) && (numLen > 1) = initGrid  (idx + 1) dat (accum ++ [pNums])
+    | otherwise = accum
+    where thisDat = dat !! idx
+          row = snd $ fst thisDat
+          col = fst $ fst thisDat
+          nums = snd thisDat
+          pNums = P (nums)
+          numLen = length nums
+          gLen = length dat
+          fxInt = F (head nums)
+
+          
+          --updated = updateGrid grid (head vals) (row, col)
+  	
+  dispFullGrid :: Grid -> Size -> String
+  dispFullGrid grid size =  unlines (map (unwords . map showCell) grid)
+    where
+      showCell (F x)
+        | size == 4 = "[" ++ show x ++ "   ]"
+        | size == 5 = "[" ++ show x ++ "    ]"
+        | size == 6 = "[" ++ show x ++ "     ]"
+      showCell (P xs) = (++ "]") . foldl' (\acc x -> acc ++(if x `elem` xs then show x else " ")) "[" $ [1..size]
   
-  runner :: [((Col, Row), [Viable])] -> Size -> IO [((Col, Row), [Viable])]
+
+  ns :: [((Int, Int), [Int])] -> Idx -> Size -> [((Int, Int), [Int])] -> [((Int, Int), [Int])]
+  ns dat idx size accum
+    | keepGoing && (numLen == 1) =
+    | keepGoing && (numLen > 1) =
+    | otherwise = accum
+    where keepGoing = idx < (length dat)
+          thisDat = dat !! idx 
+          thisMk = fst thisDat
+          theseNums = snd thisDat
+          numLen = length theseNums
+
+
+
+  	
+  pruneCells :: [Cell] -> Maybe [Cell]
+  pruneCells cells = traverse pruneCell cells
+    where
+      fixeds = [x | F x <- cells]
+      pruneCell (P xs) = case xs Data.List.\\ fixeds of
+        []  -> Nothing
+        [y] -> Just $ F y
+        ys  -> Just $ P ys
+      pruneCell x = Just x
+
+  dispGrid :: Grid -> String
+  dispGrid = unlines . map (unwords . map showCell)
+    where showCell (F x) = show x
+          showCell _ = "-"
+
+  {-data Tree a = L a | N a (Tree a) (Tree a) | Z deriving (Show)
+    lsTree [] = Z
+    lsTree [x] = L x
+    lsTree list = N x (lsTree ltx) (lsTree gtx)
+                 where 
+                 m = length list `div` 2
+                 x = list !! m
+                 ltx = take m list
+                 gtx = drop (m+1) list
+   -}
+  {-finder :: Size -> Step -> Count -> Count -> 
+              [((Sc, Sr), [Viable])] -> [[((Sc, Sr), [Viable])]] -> 
+              [[Viable]] -> [[[Viable]]] -> [[Idx]] -> [[[Idx]]]  ->
+              IO [((Sc, Sr), [Viable])]
+    finder bd steps mkPos idxStep inp inpBin grid gridBin idxList idxBin = do
+      ps "-------------------------------------------------------------------------"
+      traceShowM (length gridBin)
+      traceShowM (length inpBin)
+      traceShowM steps
+      --traceShowM idxList
+      --traceShowM idxBin
+      let marksOnly = fst (unzip inp)
+          numsOnly = snd (unzip inp)
+
+      if (mkPos == (length inp))
+        then do 
+          ps ">>>>  1. completed one full list iteration  <<<<"
+          if (allSameLength numsOnly)
+            then do
+              ps ">>>>  1a. final grid is filled  <<<<"
+              return inp
+            else do 
+              ps ">>>>  1b. some paths still need to be taken  <<<<"
+              finder bd steps 0 idxStep inp inpBin grid gridBin idxList idxBin
+        else do
+          ps (">>>>  2. look at current point & select val/path  <<<<")
+          traceShowM (snd (unzip (sort inp)))        
+          let thisMark = marksOnly !! mkPos
+              thisCol = fst thisMark
+              thisRow = snd thisMark
+              theseIdxs = idxList !! mkPos
+              thisIdx = head theseIdxs
+          if ((length theseIdxs) == 1) 
+            then do
+              ps (">>>>  3. at last value for the current point, determine what to do  <<<<")
+              traceShowM (length numsOnly)
+              traceShowM (mkPos)
+              let picked = last (numsOnly !! mkPos)
+              let focusedRow = grid !! thisRow   
+                  focusedCol = (rearrange grid 0 []) !! thisCol
+              if ((picked `elem` focusedRow) || (picked `elem` focusedCol))
+                then do
+                  ps (">>>>  4. the last value doesn't fit in the grid, need to backtrack  <<<<")
+                  ps "changes idx - since val is unsuccessful, remove its index"
+                  let savePt = if (steps > 0) then (steps - 1) else 0
+                  let oldInp = inpBin!!savePt
+                      oldGrid = gridBin!!savePt
+
+                      idxLen = length idxBin
+                      diff = abs (idxLen - idxStep) 
+                      oldIdxs = idxBin!!savePt
+                      
+
+                  
+                  let rmIdx = if ((length theseIdxs) > 1) then filter (/= thisIdx) theseIdxs else [head theseIdxs]
+                      splIdx = splitAt mkPos idxList
+                      newIdxs = (fst splIdx) ++ [rmIdx] ++ (tail (snd splIdx))
+                  let cleanInpBin = dropAt inpBin savePt
+                      cleanGridBin =   dropAt gridBin savePt
+                      cleanIdxBin =  dropAt idxBin savePt
+                      
+                  let prevMkCount = if (mkPos > 0) then (mkPos - 1) else 0
+                  finder bd (steps - 1) prevMkCount 0 oldInp cleanInpBin oldGrid cleanGridBin newIdxs cleanIdxBin   
+
+                else do
+                  ps (">>>>  5. last value of current point fits in grid, look at next point  <<<<")
+                  ps "changes idx - since val is successful, leave it as only index in place"
+                  let newGrid = updateGrid grid picked (thisRow, thisCol)
+                      nGridBin = gridBin ++ [grid]
+                  let adj = getAdjacent inp (thisCol, thisRow) bd
+                      lessAdj = removeFromAdjacent adj picked
+                      newInp = updateNew inp lessAdj []
+                      nInpBin = inpBin ++ [inp]
+                      tIdx = mkPos
+                      splIdx = splitAt tIdx idxList
+                      newIdxs = (fst splIdx) ++ [[thisIdx]] ++ (tail (snd splIdx))
+                      nIdxBin = idxBin ++ [idxList]
+                  finder bd (steps + 1) (mkPos + 1) (idxStep + 1) newInp nInpBin newGrid nGridBin newIdxs nIdxBin
+
+            else do
+              ps (">>>>  6. not at the end of the value list, keep going  <<<<")
+              ps (s grid)
+              let ivCount = head theseIdxs
+              traceShowM (length numsOnly)
+              traceShowM ivCount
+              traceShowM mkPos
+              traceShowM (length (numsOnly !! mkPos))
+
+              let picked = if (length (numsOnly !! mkPos)) == ivCount then last (numsOnly !! mkPos) else (numsOnly !! mkPos) !! ivCount
+              let focusedRow = grid !! thisRow   
+              let focusedCol = (rearrange grid 0 []) !! thisCol 
+              if ((picked `elem` focusedRow) || (picked `elem` focusedCol))
+                then do
+                  ps (">>>>  7. value is taken up in row and/or column, move to next  <<<<")
+                  ps "changes idx - since val is successful, leave it as only index in place"
+                  ps (s grid)
+                  ps (s picked)
+                  ps (s focusedRow)
+                  ps (s focusedCol)
+                  let fIdxs = if ((length theseIdxs) == 1) then [(head theseIdxs)] else (tail theseIdxs)
+                      splIdx = splitAt mkPos idxList
+                      newIdxs = (fst splIdx) ++ [fIdxs] ++ (tail (snd splIdx))
+                      nIdxBin = idxBin ++ [newIdxs] 
+                  finder bd steps mkPos (idxStep + 1) inp inpBin grid gridBin newIdxs nIdxBin
+
+                else do
+                  ps (">>>>  8. value is NOT taken up in row or column, make updates  <<<<")
+                  ps "changes idx - since val is unsuccessful, remove its index"
+                  let newGrid = updateGrid grid picked (thisRow, thisCol)
+                      nGridBin = gridBin ++ [grid]
+                  let adj = getAdjacent inp (thisCol, thisRow) bd
+                      lessAdj = removeFromAdjacent adj picked
+                      newInp = updateNew inp lessAdj []
+                      nInpBin = inpBin ++ [inp]
+                      tIdx = mkPos
+                      splIdx = splitAt tIdx idxList
+                      newIdxs = (fst splIdx) ++ [[thisIdx]] ++ (tail (snd splIdx))
+                      nIdxBin = idxBin ++ [idxList]
+                  traceShowM picked    
+                  finder bd (steps + 1) (mkPos + 1) (idxStep + 1) newInp nInpBin newGrid nGridBin newIdxs nIdxBin 
+                  -}
+  
+  idxList :: [((Sc, Sr), [Viable])] -> Idx -> [[Idx]] -> [[Idx]]
+  idxList list idx accum
+    | idx < (length list) = idxList list (idx+1) (accum ++ [lr])
+    | otherwise = accum
+    where this = list !! idx
+          nums = snd this
+          len = length nums
+          lr = [0..(len-1)]
+     
+  updateGrid :: [[a]] -> a -> (Int, Int) -> [[a]]
+  updateGrid m x (r,c) =
+    take r m ++
+    [take c (m !! r) ++ [x] ++ drop (c + 1) (m !! r)] ++
+    drop (r + 1) m
+
+  getAdjacent ::  [((Sc, Sr),[Viable])] -> (Sc, Sr) -> Size -> [((Sc, Sr),[Viable])]
+  getAdjacent dat (c, r)  d
+    | equalPairs (c,r) (0,0) = [below, right]
+    | equalPairs (c,r) (0,(d - 1)) = [above, right]
+    | equalPairs (c,r) ((d - 1),0) = [below, left]
+    | equalPairs (c,r) ((d - 1),(d - 1)) = [above, left]
+    | ((c == (d-1)) && noExtRow)  = [above, below, left]
+    | ((c == 0) && noExtRow) = [above, below, right]
+    | ((r == (d - 1)) && noExtCol)  = [above, left, right]
+    | ((r == 0) && noExtCol) = [below, left, right]
+    | otherwise = [above, below, left, right]
+    where right = according dat ((c+1), r)
+          left = according dat ((c-1), r)
+          below = according dat (c, (r+1))
+          above = according dat (c, (r-1))
+          noExtRow = ((r /= 0) && (r /= (d - 1)))
+          noExtCol = ((c /= 0) && (c /= (d - 1)))
+
+  removeFromAdjacent :: [((Sc, Sr), [Viable])] -> Target -> [((Sc, Sr), [Viable])]
+  removeFromAdjacent dat target = lUpd ++ shortGuys
+      where longerVals = filter ((> 1) . length . snd) dat -- ensure list with 1 item does not have val removed
+            shortGuys = filter ((== 1) . length . snd) dat
+            lCoord = fst (unzip longerVals)
+            lVal = snd (unzip longerVals)
+            filt = map (filter (/= target)) lVal
+            lUpd = zip lCoord filt
+
+  updateNew :: [((Sc, Sr), [Viable])] -> [((Sc, Sr), [Viable])] -> [((Sc, Sr), [Viable])] -> [((Sc, Sr), [Viable])]
+  updateNew _ [] final = final
+  updateNew initList updated final = updateNew new (tail updated) new
+    where
+      fChunk = (head updated)
+      fElem = fst fChunk
+      pidx = indexOfPair fElem initList 0
+      spl = splitAt (pidx) initList
+      new = (fst spl) ++ [fChunk] ++ (tail (snd spl))
+
+  runner :: [((Sc, Sr), [Viable])] -> Size -> IO [((Sc, Sr), [Viable])]
   runner byLen dimens = do
     checkData <- checking 0 0 byLen dimens []
     let chDataList = chunkUp dimens (listifyGrid (sort checkData) 0 [])
@@ -78,6 +332,16 @@
     if (noInnerDupes byCol) && (noInnerDupes byRow)
       then return (checkData)
       else do  (runner byLen dimens)
+
+  mkEmpty :: Size -> Count -> [[Int]]
+  mkEmpty n 0 = []
+  mkEmpty n count = [(take n [0,0..])] ++ mkEmpty n (count - 1)
+
+  bigLineTime :: Show a => [[a]] -> String 
+  bigLineTime line = concat (map lineTime line)
+
+  lineTime :: Show a => [a] -> String
+  lineTime line = ((s line) ++ "\n\n")
 
   noInnerDupes :: [[Viable]] -> Bool
   noInnerDupes [] = True
@@ -103,7 +367,7 @@
     | otherwise = accum
     where taken = (map (!! idx) rows)
 
-  checking :: Idx -> Idx  -> [((Col, Row), [Viable])] -> Size -> [((Col, Row), [Viable])] ->  IO [((Col, Row), [Viable])]
+  checking :: Idx -> Idx  -> [((Sc, Sr), [Viable])] -> Size -> [((Sc, Sr), [Viable])] ->  IO [((Sc, Sr), [Viable])]
   checking idx extra gridData dimens builder = do
     let xidx = if (idx == (length gridData)) then 0 else idx
     let justVals = snd (unzip gridData)
@@ -129,93 +393,99 @@
             byCol = smush chunkedUpdl 0 []
             byRow = rearrange byCol 0 []
             sortUpdl = sortBy (comparing (length . snd)) shorterUpdl
-        debugM dtag ("[checking]"++"before indexOfPairCall: " ++ (show thisCoord) ++ " " ++ (show sortUpdl)) 
+        --debugM dtag ("[checking]"++"before indexOfPairCall: " ++ (s thisCoord) ++ " " ++ (s sortUpdl)) 
         let newIdx = indexOfPair thisCoord sortUpdl 0
         if (noInnerDupes byCol) || (noInnerDupes byRow)
           then do checking (newIdx) (extra+1) sortUpdl dimens sortUpdl
           else do checking (newIdx + 1) (extra+1) sortUpdl dimens sortUpdl
 
-  walkPaths :: Idx -> Idx -> [((Col, Row), [Viable])] -> Size -> [((Col, Row), [Viable])] ->  IO [((Col, Row), [Viable])]
+  walkPaths :: Idx -> Idx -> [((Sc, Sr), [Viable])] -> Size -> [((Sc, Sr), [Viable])] ->  IO [((Sc, Sr), [Viable])]
   walkPaths full inner vgrid dimens builder = do
+    ps "-------------------------------------------------------------------------"
     let fullLen = length vgrid
         xfull = if ((full == fullLen) || (full < 0)) then 0 else full
-        
-    if ((xfull + 1) == fullLen)
-      then do 
-        debugM dtag "1. hit ((xfull + 1) == fullLen)"
-        walkPaths 0 (inner + 1) vgrid dimens builder
+        initjustNums = snd (unzip vgrid)
+        initchunked = chunkUp dimens (listifyGrid vgrid 0 [])
+        initbyCol = smush initchunked 0 []
+        initbyRow = rearrange initbyCol 0 []
+    if (allSameLength initjustNums) 
+      then return vgrid
       else do
-        debugM dtag "2. hit ELSE OF ((xfull + 1) == fullLen)"
-        let nfull = (xfull + 1)  
-            justMarks = fst (unzip vgrid)
-            justNums = snd (unzip vgrid)
-            theseNums = justNums !! xfull
-            nextNums = justNums !! nfull
-            thisMark = justMarks !! xfull
-            nextMark = justMarks !! nfull
-            numLen = length theseNums 
-            nxtLen = length nextNums
-            xinner = if ((numLen == 1) || (inner == numLen)) then 0 else inner
-            ninner = if ((nxtLen == 1) || (inner == nxtLen)) then 0 else inner
-            thisNum = theseNums !! xinner
-            nxtNum = nextNums !! ninner
-        if (thisNum == nxtNum)
+        if ((xfull) == fullLen)
           then do 
-            debugM dtag "3. hit (thisNum == nxtNum)"
-            --debugM dtag ((show thisNum) ++ "==" ++(show nxtNum) ++ "\n") 
-            walkPaths (xfull + 1) (xinner) vgrid dimens builder
+            ps ">>>> 1. end of input data <<<<"
+            ps $ s xfull
+            ps $ s fullLen 
+            walkPaths 0 (inner + 1) vgrid dimens builder
           else do 
-            debugM dtag "4. hit ELSE OF (thisNum == nxtNum)"
-            -- debugM dtag ((show thisMark) ++ " " ++ (show thisNum) ++ ", " ++
-            --             (show nxtNum) ++ ". dimens:" ++ (show dimens) ++ "\n" ++
-            --             "> vgrid: " ++ (blah (ss vgrid)) ++ "\n") 
-            let adj  =  getAdjacent vgrid thisMark dimens
-            
-            -- debugM dtag ("> [walkPaths]" ++ " before removeFromAdjacent-call:\n" ++ 
-            --             "> adj: "++ (show adj) ++ 
-            --             "\n> thisNum: " ++ (show thisNum) ++ "\n")
-            let updatedAdj = removeFromAdjacent adj thisNum
+              ps ">>>> 2. not end of input data <<<<"
+              let nfull = (xfull + 1)  
+                  justMarks = fst (unzip vgrid)
+                  justNums = snd (unzip vgrid)
+              let theseNums = justNums !! xfull
+              ps $ s theseNums
 
-            -- debugM dtag ("> [walkPaths]"++" before updateNew-call:\n" ++ 
-            --             "> vgrid: "++ (blah (ss vgrid)) ++ 
-            --             "\n> updatedAdj: " ++ (show updatedAdj) ++ "\n")
-            let updat = updateNew vgrid updatedAdj []
-            -- debugM dtag ("> [walkPaths]"++" after updateNew-call & BEFORE slimming:\n" ++ 
-            --             "> updat: "++ (blah (ss updat))++ "\n")
 
-            let sidx = indexOfPair thisMark vgrid 0
-                spUpdat = splitAt sidx updat
-            -- debugM dtag ("> [walkPaths]"++" after splitting:\n" ++ 
-            --             "> spUpdat:\n"++ (blah (ss (fst spUpdat))) ++ "\n" ++
-            --             (blah (ss (snd spUpdat))) ++ "\n")
-            let thisShort = [(thisMark, [thisNum])]
-                shortUpdat = (fst spUpdat) ++ thisShort ++ (tail (snd spUpdat))
+              let thisMark = justMarks !! xfull
+              ps $ s thisMark
 
-            -- debugM dtag ("> [walkPaths]"++" after updateNew-call & slimming:\n" ++ 
-            --     "> shortUpdat: "++ (blah (ss shortUpdat))++ "\n")
-            let chunked = chunkUp dimens (listifyGrid shortUpdat 0 [])
-                byCol = smush chunked 0 []
-                byRow = rearrange byCol 0 []
-            
-            if (allSameLength justNums)
-              then do
-                debugM dtag "5. hit (allSameLength justNums)"     
-                if ((noInnerDupes byCol) && (noInnerDupes byRow))
-                  then do
-                    debugM dtag "6. hit ((noInnerDupes byCol) && (noInnerDupes byRow))"  
-                    return shortUpdat
-                  else do
-                    debugM dtag "7. hit ELSE OF ((noInnerDupes byCol) && (noInnerDupes byRow))" 
-                    walkPaths (xfull - 1) xinner shortUpdat dimens builder
-              else do 
-                debugM dtag "8. hit ELSE OF (allSameLength justNums)"
-                walkPaths (xfull + 1) (xinner+1) shortUpdat dimens builder
+              let numLen = length theseNums
+              ps $ s numLen
+
+              let xinner = if ((numLen == 1) || (inner == numLen)) then 0 else inner
+              ps $ s xinner
+
+              let thisNum = theseNums !! xinner
+              ps $ s thisNum
+
+              let adj  =  getAdjacent vgrid thisMark dimens
+              ps $ s adj
+
+              let updatedAdj = removeFromAdjacent adj thisNum
+              let updat = updateNew vgrid updatedAdj []
+              let sidx = indexOfPair thisMark vgrid 0
+                  spUpdat = splitAt sidx updat
+              let thisShort = [(thisMark, [thisNum])]
+                  shortUpdat = (fst spUpdat) ++ thisShort ++ (tail (snd spUpdat))
+                  shorterJustNums = (snd (unzip shortUpdat))
+              let chunked = chunkUp dimens (listifyGrid shortUpdat 0 [])
+                  byCol = smush chunked 0 []
+                  byRow = rearrange byCol 0 []
+
+              ps $ s byCol
+              ps $ s byRow
+
+              if (allSameLength shorterJustNums)
+                then do
+                  ps ">>>> 3. value choices all narrowed down <<<<"     
+                  if ((noInnerDupes byCol) && (noInnerDupes byRow))
+                    then do 
+                      ps ">>>> 4. all unique values <<<<" 
+                      return shortUpdat
+                    else do 
+                      ps ">>>> 5. at least one duplicate value <<<<"
+                      walkPaths (xfull - 1) xinner shortUpdat dimens shortUpdat
+                else do 
+                  ps ">>>> 6. still need to narrow down the list of values <<<<"
+                  if ((numLen == 1) || (inner == numLen))
+                    then do 
+                      ps ">>>> 7. reached end of inner content <<<<"
+                      walkPaths (xfull + 1) 0 shortUpdat dimens shortUpdat
+                    else do 
+                      ps ">>>> 8. did not reach end of inner content <<<<"
+                      walkPaths (xfull) (xinner+1) shortUpdat dimens shortUpdat
 
   blah :: [Char] -> [Char]
-  blah line = (iinsert 81 '\t' (iinsert 80 '\n' line))
+  blah line = (iinsert 111 ' ' (iinsert 110 '\n' line))
   
   ss :: (Ord a , Show a) => [a] -> [Char]
-  ss list = show (sort list)
+  ss list = s (sort list)
+
+  s :: (Show a) => a -> [Char]
+  s item = show item
+
+  ps :: String -> IO ()
+  ps str = putStrLn str
 
   iinsert :: Int -> a -> [a] -> [a]
   iinsert n y xs = countdown n xs where
@@ -223,44 +493,25 @@
     countdown _ [] = []
     countdown m (x:xs) = x:countdown (m-1) xs
 
-  removeFromAdjacent :: [((Col, Row), [Viable])] -> Target -> [((Col, Row), [Viable])]
-  removeFromAdjacent dat target = lUpd ++ shortGuys
-      where longerVals = filter ((> 1) . length . snd) dat -- ensure list with 1 item does not have val removed
-            shortGuys = filter ((== 1) . length . snd) dat
-            lCoord = fst (unzip longerVals)
-            lVal = snd (unzip longerVals)
-            filt = map (filter (/= target)) lVal
-            lUpd = zip lCoord filt
-            
-  updateNew :: [((Col, Row), [Viable])] -> [((Col, Row), [Viable])] -> [((Col, Row), [Viable])] -> [((Col, Row), [Viable])]
-  updateNew _ [] final = final
-  updateNew initList updated final = updateNew new (tail updated) new
-    where
-      fChunk = (head updated)
-      fElem = fst fChunk
-      --debugM dtag ("[updateNew]"++" before indexOfPairCall: " ++ (show fElem) ++ " " ++ (show initList))
-      pidx = indexOfPair fElem initList 0
-      spl = splitAt (pidx) initList
-      new = (fst spl) ++ [fChunk] ++ (tail (snd spl))
 
-  according :: [((Col, Row), [Viable])] -> (Col, Row) -> ((Col, Row), [Viable])
+  according :: [((Sc, Sr), [Viable])] -> (Sc, Sr) -> ((Sc, Sr), [Viable])
   according dat pair = dat !! idx
     where idx = indexOfPair pair dat 0
 
-  -- pick :: [Int] -> IO Int
-  -- pick list = do
-  --   rand <- randomRIO (0, (li list))
-  --   if (length list) == 1 
-  --     then return (head list)
-  --     else do
-  --       return (list !! rand)
+  {-pick :: [Int] -> IO Int
+  pick list = do
+    rand <- randomRIO (0, (li list))
+    if (length list) == 1 
+      then return (head list)
+      else do
+        return (list !! rand)-}
 
 
   allSameLength :: [[a]] -> Bool
   allSameLength []     = True
   allSameLength (noggin : body) = all (\inner -> length inner == length noggin) body
 
-  getPossible :: (Col, Row) -> [((Col, Row), [Viable])] -> [Viable]
+  getPossible :: (Sc, Sr) -> [((Sc, Sr), [Viable])] -> [Viable]
   getPossible (c, r) dList = snd (dList !! idx)
     where idx = indexOfPair (c, r) dList 0
 
@@ -271,27 +522,8 @@
                              in if (length tiniest) < (length noggin) 
                                 then tiniest else noggin
 
-  equalPairs :: (Col, Row) -> (Col, Row) -> Bool
+  equalPairs :: (Sc, Sr) -> (Sc, Sr) -> Bool
   equalPairs (fstCol, fstRow) (sndCol, sndRow) = ((fstCol == sndCol) && (fstRow == sndRow))
-
-
-  getAdjacent ::  [((Col, Row),[Viable])] -> ((Col, Row))->Size -> [((Col, Row),[Viable])]
-  getAdjacent dat (c, r)  d
-    | equalPairs (c,r) (0,0) = [below, right]
-    | equalPairs (c,r) (0,(d - 1)) = [above, right]
-    | equalPairs (c,r) ((d - 1),0) = [below, left]
-    | equalPairs (c,r) ((d - 1),(d - 1)) = [above, left]
-    | ((c == (d-1)) && noExtRow)  = [above, below, left]
-    | ((c == 0) && noExtRow) = [above, below, right]
-    | ((r == (d - 1)) && noExtCol)  = [above, left, right]
-    | ((r == 0) && noExtCol) = [below, left, right]
-    | otherwise = [above, below, left, right]
-    where right = according dat ((c+1), r)
-          left = according dat ((c-1), r)
-          below = according dat (c, (r+1))
-          above = according dat (c, (r-1))
-          noExtRow = ((r /= 0) && (r /= (d - 1)))
-          noExtCol = ((c /= 0) && (c /= (d - 1)))
 
   process :: [Flne] -> Idx -> Count -> Size -> [(Mark, Viable)] -> IO [(Mark, Viable)]
   process line idx count size coords = do
@@ -303,11 +535,11 @@
             target = getCageTarget thisLn
         potPairs <- possiblePairs (words thisLn) potenVals target
         let pairs = sort (nub (potPairs))
-        putStrLn ( "cage: " ++ (show (head thisLn)) ++ " op: " ++ (show (last thisLn)) ++
-                   " val: " ++ (show target) ++ " combos: " ++ (show potenVals))
+        ps ( "cage: " ++ (s (head thisLn)) ++ " op: " ++ (s (last thisLn)) ++
+                   " val: " ++ (s target) ++ " combos: " ++ (s potenVals))
         process line (idx + 1) (count - 1) size (coords ++ pairs)
 
-  mkList :: [((Col, Row), [Viable])] -> [((Col, Row), [Viable])] -> [((Col, Row), [Viable])]
+  mkList :: [((Sc, Sr), [Viable])] -> [((Sc, Sr), [Viable])] -> [((Sc, Sr), [Viable])]
   mkList [] accum = accum
   mkList items accum
     | (length vals) == 1 = mkList (tail items) (accum ++ [(head items)])
@@ -394,8 +626,6 @@
     | otherwise =   -1
     where thisPair = (fst (arr !! idx)) 
            
-          
-
   getCageTarget :: Flne -> Target
   getCageTarget str
     | cageSze == 1 = noOper
@@ -447,7 +677,7 @@
   groupValues :: [(Mark, Viable)] -> [(Mark, [Viable])]
   groupValues = map (\list -> (fst . head $ list, map snd list)) . groupBy ((==) `on` fst) . sortBy (comparing fst)
 
-  chunkUp :: Idx -> [a] -> [[a]]
+  chunkUp :: Show a => Idx -> [a] -> [[a]]
   chunkUp _ [] = []
   chunkUp count ns =
     let (os, ps) = splitAt count ns
@@ -462,8 +692,8 @@
   form :: (Read a, Read b, Show a, Show b) => Len -> Count -> [(a, b)] -> String -> String
   form 0 flag pairs accum = accum
   form len flag pairs accum = formed
-    where coord = show (fst (head pairs))
-          num = show (snd (head pairs))
+    where coord = s (fst (head pairs))
+          num = s (snd (head pairs))
           out = accum ++ "" ++ coord ++ " --> " ++ num ++ " " ++ (fst (endsep flag))
           cut = drop 1 pairs
           formed = form (length cut) (snd (endsep flag)) cut out
@@ -475,7 +705,7 @@
   formGrid :: [[[Viable]]] -> Idx -> String -> String
   formGrid grid idx accum
     | ((li grid) + 1) == idx = accum ++ "\n"
-    | otherwise = formGrid grid (idx + 1) (accum ++ (show (grid !! idx)) ++ "\n")
+    | otherwise = formGrid grid (idx + 1) (accum ++ (s (grid !! idx)) ++ "\n")
 
   listifyGrid :: [(a, [Viable])] -> Idx -> [[Viable]] -> [[Viable]]
   listifyGrid coordVals idx accum
@@ -497,22 +727,23 @@
     where tmp = list !! idx
           shortened = filter (/= tmp) list
 
-  colRowPair :: (Mark, [Viable]) -> ((Col, Row), [Viable])
+  colRowPair :: (Mark, [Viable]) -> ((Sc, Sr), [Viable])
   colRowPair coords = ((numCol, irow), (snd coords))
     where irow = ((read [(fst coords) !! 1]) - 1)
           numCol = ((indexOf (head (fst coords)) colNames 0))
 
-  rowColPair :: (Mark, [Viable]) -> ((Row, Col), [Viable])
+  rowColPair :: (Mark, [Viable]) -> ((Sr, Sc), [Viable])
   rowColPair coords = ((irow, numCol), (snd coords))
     where irow = ((read [(fst coords) !! 1]) - 1)
           numCol = ((indexOf (head (fst coords)) colNames 0))
 
   type Count = Int
-  type Col = Int
+  type Sc = Int
   type Idx = Int
   type Len = Int
-  type Row = Int
+  type Sr = Int
   type Size = Int
+  type Step = Int
   type Target = Int
   type Viable = Int
 

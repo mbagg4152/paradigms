@@ -1,145 +1,528 @@
-{-# LANGUAGE ExplicitForAll #-}
-{-# OPTIONS_GHC 
-    -fbreak-on-exception
-    -fprof-auto 
-    -fprof-cafs
-    -rtsopts
-    -Wincomplete-patterns
-    -Wname-shadowing
-#-}
-  {- 
-    maybe need to use later:
-    -Wall
-    -Wunused-imports
-    -Wunused-local-binds
-    -Wunused-matches
-    -fdiagnostics-color=⟨always|auto|never⟩
-    -fdiagnostics-show-caret
-    -fdefer-type-errors
-  -}
-
+  {-# LANGUAGE ExplicitForAll #-}
+  {-# OPTIONS_GHC 
+      -fbreak-on-exception
+      -fprof-auto 
+      -fprof-cafs
+      -rtsopts
+      -ferror-spans
+    
+  #-}
+  ---Wunused-imports
   module Main where
 
   import Data.Char
-  import Data.Function
   import Data.List
-  import Data.Maybe
-  import Data.Ord
+  import Data.List.Split
   import System.Environment
+  import Data.Function
+  import Data.Typeable
+  import Data.Ord
+  import Data.Map (fromListWith, toList)
 
-  import Debug.Trace
-  import Control.Monad
-  import Data.Foldable 
-  import Data.Sequence ((><), fromList)
-  import Data.List.Utils
+
 
 
 
 
   
-  brfl :: N
-  brfl = 4
-
-  colNames :: [Char]
-  colNames = "abcdef"
-
-  dlbl :: [Char]
-  dlbl = "dbug"
-  
-  data Cell = F N | P [N] deriving (Show, Ord, Eq)
-  type Row  = [Cell]
-  type Grid = [Row]
   type Pair = (N,N)
   type Chunk = ((N, N), [N])
   type Clump = ((N,N), [[N]])
+  type C = Int
+  type I = Int
+  type Len = Int
+  type Size = Int
+  type N = Int
+  type Step = Int
+  type Target = Int
+  type Pos = String
+  type Lbl = String
+  type Cage = [(Lbl, ([Pos], [[N]]))]
 
-  
+
+  brfl = 4
+  colNames = "abcdef"
+  dlbl = "dbug"
+  nl = "\n"
+  sp = " "
+  psl str = putStrLn str
+  sh val = show val
+  ln val = length val
+  ct val = concat val
+ 
+
+
   main :: IO ()
   main = do
-    -- updateGlobalLogger dlbl (setLevel DEBUG)
     fName <- getArgs
     let fNoRet = filter (/= '\r') (fName !! 0)
-    fcontent <- readFile fNoRet
-    let fLines = lines fcontent
-        fLineNoret = map (filter (/= '\r')) fLines
-        dimens = read (fLineNoret !! 0) :: N
-    ps ("Board size: " ++ (s dimens))
+    fData <- readFile fNoRet
+    let fLines = lines fData
+        fLineNoRet = map (filter (/= '\r')) fLines
+        dimens = read (fLineNoRet !! 0) :: N -- passed
 
-    coords <- process (tail fLineNoret) 0 (length (tail fLineNoret)) dimens []
-    
-    let groupValues = map (\list -> (fst . head $ list, map snd list)) . 
-                           groupBy ((==) `on` fst) . sortBy (comparing fst)
-        groups = groupValues coords
-        revGrp = sort (map rowColPair groups)
-        normGrp = sort (map colRowPair groups)
-        normGStr = form dimens brfl revGrp ""
-    ps ("\n\nmade using coords (row,col):\n" ++ normGStr++ "\n")
+    psl ("Board size: " ++ (show dimens))
 
-    let byLen = sortBy (comparing (length . snd)) normGrp
-        emg = mkEmpty dimens dimens
+    proc2 <- processData (tail fLineNoRet) 0 (length (tail fLineNoRet)) dimens []
+    let unzipped = chunkUp dimens (snd (customUnzip (sort proc2)))
+        swapped = transpose unzipped
+        byRow =  sort (map rowColClump (sort proc2) )
+        cleanedByRow = cleanUp byRow dimens
 
-        pr1 = pr revGrp dimens
-        swapped = sort (swapper pr1)
-
-        prc = pr normGrp dimens
-        pr2 = pr pr1 dimens
-
-
-    proc2 <- process2 (tail fLineNoret) 0 (length (tail fLineNoret)) dimens []
-    let uz = chunkUp dimens (snd (customUnzip (sort proc2)))
-        other = transpose uz
-
-        rcclump =  sort (map rowColClump (sort proc2) )
-        prcl = prClump rcclump dimens
-        prsw = sort(clumpSwap prcl)
-        prswpr = prClump prsw dimens
-        conden = condense prswpr
-
-        condenlist = listifyGrid conden 0 []
-
-        condenseq = sequence condenlist
-    fconden <- fseq condenseq dimens
-
+        byCol = sort (clumpSwap cleanedByRow)
+        cleanedByCol = cleanUp byCol dimens
+        backToRow = sort (clumpSwap cleanedByCol)
         
-    -- ps $ s  rcclump
-    -- ps " "
-    -- ps $ s  prcl
-    -- ps " "
-    -- ps $ s  (sort (clumpSwap prswpr))
-    ps $ s condenlist
+    slmd <- slimDown proc2 0 []
+    psl nl
+    let slmSort =  map (sortBy (compare `on` (length . snd))) (groupBy ((==) `on` fst) slmd)
+        smallerslm = map head slmSort
     
-    
-    if ((length fconden == 0))
-      then do 
-        ps "no solutions :("
-      else do
-        ps $ s fconden
+    psl nl
+    cs <- cageStuff smallerslm
+    plocs <- possibleLocs cs 
    
-    
-    ps " "
+    psl nl
+    let tst = zip (map fst plocs) (map (groupBy ((==) `on` fst)) ((map snd plocs)))
+    oke <- okay tst
+    chkdv <- checkViolations oke
+    psl nl
+    let uh = (map show chkdv)
+        uh2 = (map show oke)
+    -- print tst
+    psl nl
+    pnl uh
+  
 
-    ps " "
-
-  condense :: [Clump] -> [Chunk]
-  condense clump = loop 0 clump []
+  checkViolations :: [(Lbl,[[(Pos,Int)]])] -> IO[(Lbl,[[(Pos,Int)]])]
+  checkViolations combos = do
+    newCages <- forEachCage combos 0 []
+    return newCages
     where
-      loop idx cl accum
-        | (idx < (length cl)) = loop (idx+1) cl (accum++[(mks,cond)])
-        | otherwise = accum
-          where this = cl !! idx
-                mks = fst this
-                cond = nub (concat (snd this))
+      forEachCage :: [(Lbl,[[(Pos,Int)]])] -> I -> [(Lbl,[[(Pos,Int)]])] -> IO [(Lbl,[[(Pos,Int)]])]
+      forEachCage combos i accum = do
+        if (i == (ln combos)) then return accum
+        else if ((ln (combos!!i)  ) == 1) then do
+          forEachCage combos (i+1) (accum++[(combos!!i)])
+        else do
+          let thisCage = combos !! i
+              lbl = fst thisCage
+              dat = snd thisCage
+          withUpdated <- forEveryCombo  dat 0 []
+          let updat = [(lbl, withUpdated)]
+          forEachCage combos (i+1) (accum++updat)
+        where
+          forEveryCombo :: [[(Pos,Int)]] -> I -> [[(Pos,Int)]] -> IO [[(Pos,Int)]]
+          forEveryCombo combs j accum2 = do
+            if (j == (ln combs)) then do
+              psl "done" 
+              return accum2
+            else do
+              let thisComb = combs !! j
+                  points = fst (unzip thisComb)
+              print points
+              let fstPt = (head points)
+                  allsame = all ((== fstPt) . fst) thisComb
+              let nums = snd (unzip thisComb)
+                  isLine = cageIsLine points
+                  freqs = frequency nums
+                  det = filter ((1<) . snd ) freqs
+              max <- maxDupe points
 
-  myseq [] = [[]]
-  myseq  (list : lists) =
-    [ x : xs
-    | x <- list
-    , xs <- myseq lists
-    ]
+              if (allsame) then do
+                forEveryCombo combs (j+1) accum2
+              else do
+                let nubbed = nub points
+                pl ["before:",sh points,"nubbed:",sh nubbed]
+                if (isLine) then do
+                  if ((ln det) > 0) then do forEveryCombo combs (j+1) accum2
+                  else do forEveryCombo combs (j+1) (accum2 ++ [thisComb])
+                else do
+                  if ((ln det) > max) then do forEveryCombo combs (j+1) accum2 
+                  else do forEveryCombo combs (j+1) (accum2 ++ [thisComb])
+
+            
+  frequency :: (Ord a) => [a] -> [(a, Int)]
+  frequency xs = toList (fromListWith (+) [(x, 1) | x <- xs])         
+    
+  okay :: [(Lbl,[[(Pos,Int)]])] -> IO[(Lbl,[[(Pos,Int)]])]
+  okay stuff = do
+    cagecombos <- forEachCage stuff 0 []
+    return cagecombos
+    where
+      ---------------------------------------------------------------------------------
+      -- loop is for each cage
+      forEachCage :: [(Lbl,[[(Pos,Int)]])] -> I -> [(Lbl,[[(Pos,Int)]])] -> IO[(Lbl,[[(Pos,Int)]])]
+      forEachCage poss i accum1 = do --for each cage   
+        -- pl ["poss:", sh poss]
+        -- pl ["len poss:", shl poss]
+        if (i == (ln poss)) then do
+          --pl ["accum1:", sh accum1]
+          print i 
+          return accum1
+        else do
+          print i
+          let thisCage = poss !! i
+          -- pl ["thiscage:", sh thisCage]
+          let id = fst thisCage 
+          picked <- pickOne (snd thisCage) 0 []
+          let pickLess = filter ((0<). length) picked
+          let updat = [(id, pickLess)]
+          --pl ["updat:", sh updat] 
+          forEachCage poss (i+1) (accum1++updat)
+          where
+            ---------------------------------------------------------------------------------
+            -- loop through each list of coord-val pairs in the cage. ex. like [(a1,2),(a1,3)]...
+            pickOne :: [[(Pos,Int)]] -> I -> [[(Pos,Int)]] -> IO[[(Pos,Int)]]
+            pickOne list1 j accum2 = do --for each list of cells
+              -- pl ["list1:", sh list1]
+              if ((j == (ln list1))) then do
+                return accum2
+              else if ((ln list1) == 1) then do
+                -- pl ["list1:", sh list1]
+                pickOne list1 (j+1) (accum2++list1) 
+                -- return list1
+              else do
+                let thisPair = list1 !! j
+                picked <- forEachPoint thisPair list1 0 []
+                -- pl ["picked:", sh picked] 
+                pickOne list1 (j+1) (accum2++picked)
+                where
+                ---------------------------------------------------------------------------------
+                -- for each possible value point, pair look at each possible points from the cage
+                forEachPoint :: [(Pos,Int)] -> [[(Pos,Int)]] -> I -> [[(Pos,Int)]] -> IO [[(Pos,Int)]]
+                forEachPoint pts others k accum3 = do
+                  if (k == (ln pts)) then do
+                    --pl ["accum3:", sh accum3]  
+                    return accum3
+                  else do
+                    let thisPt = pts !! k
+                    matchedSets <- forEachOtherSet thisPt others 0 []
+                    forEachPoint pts others (k+1) (accum3++matchedSets)
+                    where
+                    ---------------------------------------------------------------------------------
+                    -- for each possible value point explore all
+                      forEachOtherSet :: (Pos,Int) -> [[(Pos,Int)]] -> I -> [[(Pos,Int)]] -> IO [[(Pos,Int)]]
+                      forEachOtherSet point sets m accum4 = do
+                        if (m == (ln sets)) then do
+                          -- pl ["accum4:", sh accum4] 
+                          return accum4
+                        else do
+                          let thisSet = sets !! m 
+                          if(((ln thisSet) == (ln [point])) || ((ln thisSet) == 0)) then do
+                            -- psl "(((ln thisSet) == (ln [point])) || ((ln thisSet) == 0)) "
+                            forEachOtherSet point sets (m+1) (accum4++[[point]])
+                          else do
+                            matched <- matchEm point thisSet
+                            forEachOtherSet point sets (m+1) (accum4++[(nub(sort matched))])
+                          where
+                          ---------------------------------------------------------------------------------
+                          -- finally for each singular point, actually match em up
+                            matchEm :: (Pos, Int) -> [(Pos,Int)] -> IO [(Pos,Int)]
+                            matchEm pt smSet = do
+                              -- psl "-------------------------------------------------------------"
+                              -- pl ["pt:",sh pt,"smSet:",sh smSet]
+                              if ((ln smSet) == 1) then do 
+                                -- psl "smSet has len 1" 
+                                return smSet
+                              else do
+                                let setCoords = (map fst smSet)
+                                    thisCoord = fst pt
+                                    chunks = chunksOf 1 (smSet)
+                                    added = (concat (map (pt:)chunks))
+                                -- pl ["added:",sh added] 
+                                return added
+      
+
+
+  inSameLine :: Pos -> Pos -> Bool
+  inSameLine p1 p2
+    | ((c1 == c2) || (r1 == r2)) = True
+    | otherwise = False 
+    where (c1,c2,r1,r2) = (head p1,head p2,last p1, last p2)
+      
+  possibleLocs :: [(Lbl, ([Pos], [N]))] -> IO [(Lbl, [(Pos,N)])]
+  possibleLocs poss = do 
+    possible <- forEveryCage poss 0 []
+    return possible
+    where
+      forEveryCage line i accum = do
+        if (i == (ln line)) then return accum
+        else do 
+          let this = line !! i 
+              (lbl, dat, pts, nums) = (fst this,snd this, fst dat, snd dat)
+          pairs <- forEveryPoint pts nums 0 []
+          forEveryCage line (i+1) (accum++[(lbl, pairs)])
+          --------------------------------------------------------
+          where
+            forEveryPoint points nums j  accum = do
+              if (j == (ln points)) then return accum
+              else do
+                let thisPt = points !! j
+                combos <- forEveryNum thisPt nums 0 []
+                forEveryPoint points nums (j+1) (accum ++ combos)
+                ----------------------------------------------------
+                where
+                  forEveryNum point nums k accum = do
+                    if (k == (ln nums)) then return accum
+                    else do
+                      let thisNum = nums !! k
+                      forEveryNum point nums (k+1) (accum ++ [(point,thisNum)])
+
+
+  cageStuff :: [(Pos, [[N]])] -> IO [(Lbl, ([Pos], [N]))] -- cage has list of coordinates & values
+  cageStuff chunks = do
+    fName <- getArgs
+    fData <- readFile (fName !! 0) -- passed?
+    let fLines = map (filter (/= '\r')) (lines fData)
+        noOps = map (filter (/= '+')) (map (filter (/= '-')) (tail fLines))
+        (cages,worded) = (map digitToInt (map head noOps), map words noOps)
+        (points,dataSize) = (map tail (map init (map words noOps)), ln points)
+    labeled <- forLn chunks 0 []
+    let grped = sort (groupBy ((==) `on` fst) (sort labeled))
+    asCages <- forEachUid grped 0 []
+    return asCages
+      where  forLn dat i accum = do
+                if (i == (ln dat)) then return accum
+                else do
+                  let (this, point, nums) = ((dat !! i),(fst this), (snd this))
+                  cageLbl <- getCage point
+                  forLn dat (i+1) (accum ++ [(cageLbl, (point, nums ))])
+             forEachUid :: [[(Lbl, (Pos, [[N]]))]] -> I -> [(Lbl, ([Pos], [N]))] -> IO [(Lbl, ([Pos], [N]))]
+             forEachUid cData i accum = do
+                if (i == (ln cData)) then return accum
+                else do 
+                  let this = cData !! i
+                  let unz = unzip this
+                      lbl = head (fst (unzip this))
+                  let dat = snd unz
+                      pts = map fst dat
+                      nums = nub(concat (head ((snd(unzip dat)))))
+                  forEachUid cData (i+1) (accum ++ [(lbl, (pts,nums))]) 
+
+  getCage :: Pos -> IO Lbl
+  getCage point = do
+    fName <- getArgs
+    fData <- readFile (fName !! 0) 
+    let fLines = map (filter (/= '\r')) (lines fData)
+        noOps = map (filter (/= '+')) (map (filter (/= '-')) (tail fLines))
+        (cages, worded) =( map digitToInt (map head noOps), map words noOps)
+        (points,dataSize) = (map tail (map init (map words noOps)),ln points)
+        num = map show [1..dataSize]
+        identifiers = map ("C"++) num
+        cagePoints = zip identifiers points -- type [(String,[Pos])]
+
+    members <- findCage cagePoints 0 point []
+    return members
+    where
+      findCage :: [(String,[Pos])] -> I -> Pos -> Pos -> IO String 
+      findCage lns i toMatch holder = do
+            let done = (i == (ln lns))
+            if done then return holder
+            else do
+              let thisln = lns !! i
+                  (iden, points) = (fst thisln, snd thisln)
+              if ([toMatch] `isInfixOf` points) then do findCage lns (i+1) toMatch iden
+              else do
+                let swapped = [(last toMatch)]++[(head toMatch)]
+                if ([swapped]  `isInfixOf` points) then do findCage lns (i+1) toMatch iden
+                else do findCage lns (i+1) toMatch holder 
+
+
+
+
+    
+  getCageMembers :: Pos -> IO [Pos]
+  getCageMembers point = do
+    fName <- getArgs
+    fData <- readFile (fName !! 0) 
+    let fLines = map (filter (/= '\r')) (lines fData)
+        noOps = map (filter (/= '+')) (map (filter (/= '-')) (tail fLines))
+        (cages, worded) =( map digitToInt (map head noOps), map words noOps)
+        points = map tail (map init (map words noOps))
+    members <- findMembers points 0 point []
+    return members
+    where
+      findMembers :: [[Pos]] -> I -> Pos -> [Pos] -> IO [Pos] 
+      findMembers lns i toMatch holder = do
+            let done = (i == (ln lns))
+            if done then return holder
+            else do
+              let thisln = lns !! i
+              if ([toMatch] `isInfixOf` thisln) then do findMembers lns (i+1) toMatch thisln
+              else do
+                let swapped = [(last toMatch)]++[(head toMatch)]
+                if ([swapped]  `isInfixOf` thisln) then do findMembers lns (i+1) toMatch thisln
+                else do findMembers lns (i+1) toMatch holder
+
+  isInLine :: Pos -> IO Bool
+  isInLine point = do
+    members <- getCageMembers point
+    if (members == [""]) then return False
+    else do
+      let cage = cageIsLine members
+      return cage
+
+  maxDupe :: [Pos] -> IO N
+  maxDupe points = do 
+    if (((ln points) < 3) || (cageIsLine points)) then return 1
+    else do
+      let (cols,rows) = ((group (sort (map (take 1) points))), (group (sort (map (drop 1) points))))
+          (sCols,sRows) = (sortBy (compare `on` ln) cols, sortBy (compare `on` ln) rows)
+          (scLen, srLen) = ( ln sCols , ln sRows)
+      if ((scLen > srLen) || (scLen == srLen)) then return srLen
+      else do return srLen
+             
+
+  getMaxDupes :: Pos -> IO N
+  getMaxDupes point = do
+    members <- getCageMembers point
+    let (cols,rows) = ((group (sort (map (take 1) members))), (group (sort (map (drop 1) members))))
+        (sCols,sRows) = (sortBy (compare `on` ln) cols, sortBy (compare `on` ln) rows)
+        (scLen, srLen) = ( ln sCols , ln sRows)
+    if ((scLen > srLen) || (scLen == srLen)) then return srLen
+    else if ((ln members) < 3) then return 1
+    else do return srLen
+          
+
+  slimDown :: [(Pos, [[N]])] -> I -> [(Pos, [[N]])] -> IO [(Pos, [[N]])]
+  slimDown options i accum = do 
+    if (i == ln options) then return (sort (nub accum))
+    else do
+      let (this, nums, mk) = ((options !! i),(snd this),(fst this))
+          (row, col) = ((head mk),(last mk))
+          flattened = concat nums
+          thisCol = filter (((==col).last).fst) options
+          thisRow = filter (((==row).head).fst) options    
+      if ((ln flattened) == 1) then do -- this value is set
+          updatRow <- forEachLine thisRow 0 (head flattened) []
+          updatCol <- forEachLine thisCol 0 (head flattened) []
+          let (rNums, cNums, upRNums, upCNums) = (snd (unzip thisRow), snd (unzip thisCol), snd (unzip updatRow), snd (unzip updatCol)) 
+          slimDown options (i+1) (accum++updatRow++updatCol)
+      else do
+        slimDown options (i+1) (accum++thisRow++thisCol)       
+        where forEachLine :: [(Pos, [[N]])] -> I -> N -> [(Pos, [[N]])] -> IO [(Pos, [[N]])]
+              forEachLine items j v accum = do
+                let done = (j == (ln items))
+                if (done) then return accum
+                else do
+                  let item = items !! j
+                      (coord, nums) = (fst item, snd item)
+                      numHeads = head nums
+                      longEnough = (((ln nums) > 1))
+                  --pl ["coord", coord]
+                  changedSet <- (forEachSet nums coord 0 v [])
+                  let changed = (coord, changedSet)
+                  if (longEnough) then do forEachLine items (j+1) v (accum++[changed])
+                  else do forEachLine items (j + 1) v (accum ++ [item])
+                where forEachSet :: [[N]] -> Pos -> I -> N -> [[N]] -> IO [[N]]
+                      forEachSet vals pt k d accum = do
+                        let done = k == (ln vals)
+                        if done then return accum
+                        else do
+                          let (thisSet, hasNum, longEnough) = ((vals !! k), (d `elem` thisSet), ((ln thisSet)>1))
+                          maxx <- getMaxDupes pt
+                          --pl [sh maxx, pt]
+                          inLine <- isInLine pt
+                          if (hasNum && longEnough && (not inLine)) then do
+                            let occur = filter (==d) thisSet
+                            if ((ln occur) < maxx) then do 
+                              if ((k == (li vals)) && ((ln accum) == 0)) then do forEachSet vals pt (k+1) d (accum++[thisSet])
+                              else do  forEachSet vals pt (k+1) d accum
+                            else do forEachSet vals pt (k+1) d (accum++[thisSet])
+                          else if (hasNum && longEnough) then do forEachSet vals pt (k+1) d accum
+                          else do forEachSet vals pt (k+1) d (accum++[thisSet])
+                            
+  cageIsLine :: [Pos] -> Bool
+  cageIsLine points = ((ln colGrps) == 1 || (ln rowGrps) == 1) -- if this holds true then the cage is a line
+    where colGrps = group (sort (map (take 1) points)) 
+          rowGrps = group (sort (map (drop 1) points))
+      
+
+  cageChk :: (N,N) -> (N,N) -> (Target,Target) -> (Char,Char) -> Bool
+  cageChk (0,b) (c,d) (e,f) (g, h) = ((c==d) && (e==f) && (g==h))
+  cageChk (a,b) (c,d) (e,f) (g, h) = ((a==b) && (c==d) && (e==f) && (g==h))
+
+  hasMoreThan :: N -> [N] -> Bool
+  hasMoreThan max list 
+    | (ln biggestDupes) < max = False
+    | (ln biggestDupes) > max = True
+    | otherwise = False
+    where gs = group (sort list)
+          sorted = sortBy (comparing length) gs
+          biggestDupes = (last sorted)
+
+  
+  applyCageRules :: [[N]] -> [Pos] -> Size ->  Size -> Target -> Char -> IO [[N]]
+  applyCageRules    nums     points   squares  dimens  target    oper = do
+    if ((squares < 3)) then do
+        return nums
+      else do
+        let (cols, rows) = ((map (take 1) points), (map (drop 1) points))
+        maxx <- getMaxDupes ((head cols)++(head rows))
+        let (colGrps,rowGrps) = ((group (sort cols)), (group (sort rows)))
+            (cgLen,rgLen ) = ((ln colGrps),(ln rowGrps))
+            (sq, tg, op, dm) = (squares, target, oper, dimens)
+            isLine = cageIsLine points
+            checkValues poss i accum
+              | (again && (not passed) && isLonger) = checkValues (tail poss) (i+1) accum
+              | (again && atEnd && (not passed) && (blank)) =  checkValues (tail poss) (i+1) (accum ++ [this])
+              | (again && passed) =  checkValues (tail poss) (i+1) (accum ++ [this])
+              | otherwise = accum
+              where (this,nubbed) = (poss !! i, nub this)
+                    passed = (not (hasMoreThan maxx this))
+                    (atEnd, blank, again, isLonger) = (i == (li poss), ((ln accum) == 0), i < (ln poss),((ln this) > 1))
+
+        -- strict rules for cages while searching for tips on solving KenKen, helps cleaning process
+        if ((cageChk (0,dm) (3,sq)(6,tg)('+',op)) && (isLine)) then return [[1,2,3]]
+        else if ((cageChk (0,dm) (3,sq) (7,tg) ('+',op)) && (isLine)) then return [[1,2,4]]
+        else if (cageChk (0,dm) (3,sq) (4,tg) ('+',op)) then return [[1,1,4]]
+        else if (cageChk (0,dm) (2,sq) (4,tg) ('+',op)) then  return [[1,3]]
+        else if (cageChk (4,dm) (2,sq) (3,tg) ('-',op)) then return [[1,4]]
+        else if (cageChk (4,dm) (2,sq) (6,tg) ('+',op)) then do return [[2,4]]
+        else if (cageChk (4,dm) (2,sq) (7,tg) ('+',op)) then do return [[3,4]]
+        else if (cageChk (5,dm) (2,sq) (4,tg) ('-',op)) then do return [[1,5]]
+        else if (cageChk (5,dm) (2,sq) (9,tg) ('+',op)) then do return [[4,5]]
+        else if (cageChk (5,dm) (2,sq) (8,tg) ('+',op)) then do return [[3,5]]
+        else if (cageChk (6,dm) (2,sq) (5,tg) ('-',op)) then do return [[1,6]]
+        else if (cageChk (6,dm) (2,sq) (11,tg) ('+',op)) then do return [[5,6]]
+        else if (cageChk (6,dm) (2,sq) (10,tg) ('+',op)) then do return [[4,6]]
+        else if ((cageChk (6,dm) (3,sq) (14,tg) ('+',op)) && (isLine)) then do return [[3,5,6]]
+        else if (isLine) then do
+            let updated = checkValues nums 0 []
+            --pl ["post-update - isLine",sh points,sh updated, "max:", sh maxx]
+            return updated
+        else if (not isLine) then do
+          let updated = checkValues nums 0 []
+          --pl ["post-update - not line",sh points,sh updated,"max:", sh maxx]
+          return updated
+        else do return nums
+         
+  processData :: [Pos] -> I -> C -> Size -> [(Pos, [[N]])] -> IO [(Pos, [[N]])]
+  processData line i c size coords = do
+    if (i == (ln line))
+      then return coords
+      else do
+        let thisLn = (line !! i)
+        let potenVals = findVals thisLn size
+        let target = getCageTarget thisLn
+        let worded = (words thisLn)
+        potPairs <- possiblePairs worded potenVals target
+        let chk = fst (unzip potPairs)
+        let noSize = tail worded
+            sizeOnly = read (head worded) :: N
+            noEnd = if (sizeOnly == 1) then init noSize else init (init noSize)
+            otherway = swapname noEnd
+        let letters = nub (fst (unzip potPairs))
+            operation = head (last worded)
+        newNums <- applyCageRules potenVals letters sizeOnly size target operation
+        let zipped = customZip noEnd newNums
+        --pl [sh otherway,sh newNums]           
+        processData line (i + 1) (c - 1) size (coords ++ zipped)
 
   accordingClump :: [Clump] -> Pair -> Clump
   accordingClump dat pair = dat !! idx
-    where idx = indexOfClumpPair pair dat 0
+    where idx = clumpPairIndex pair dat 0
 
   getAdjacentClumps ::  [Clump] -> Pair -> Size -> [Clump]
   getAdjacentClumps dat (c, r)  d
@@ -159,7 +542,6 @@
           noExtRow = ((r /= 0) && (r /= (d - 1)))
           noExtCol = ((c /= 0) && (c /= (d - 1)))
 
-
   rmFromAdjacent :: [Clump] -> Target ->  [Clump]
   rmFromAdjacent dat target = lUpd
       where lCoord = fst (unzip dat)
@@ -167,7 +549,7 @@
             filt = foreach lVal 0 target []
             lUpd = zip lCoord [filt]
 
-            foreach :: [[N]] -> Idx -> Target -> [[N]] -> [[N]]
+            foreach :: [[N]] -> I -> Target -> [[N]] -> [[N]]
             foreach vals idx targ accum 
               | (idx < (length vals)) && ((targ `elem` this) && (length this) > 1) = foreach vals (idx+1) targ accum
               | (idx < (length vals)) && (targ `notElem` this) = foreach vals (idx+1) targ (accum++[this])
@@ -180,13 +562,12 @@
     where
       fChunk = (head updated)
       fElem = fst fChunk
-      pidx = indexOfClumpPair fElem initList 0
+      pidx = clumpPairIndex fElem initList 0
       spl = splitAt (pidx) initList
       new = (fst spl) ++ [fChunk] ++ (tail (snd spl))
-
                               
-  prClump :: [((N,N), [[N]])]  -> Size -> [((N,N), [[N]])] 
-  prClump dat size = looper dat [] 0 size
+  cleanUp :: [((N,N), [[N]])]  -> Size -> [((N,N), [[N]])] 
+  cleanUp dat size = looper dat [] 0 size
     where
       looper dat accum idx size 
         | (idx < (length dat)) && ((length filt) >= 1) = looper upd upd (idx + 1) size
@@ -206,58 +587,29 @@
               adj = getAdjacentClumps datt (col,row) size
               rmAdj = rmFromAdjacent adj target                              
 
-
-  pr :: [Chunk] -> Size -> [Chunk]
-  pr dat size = looper dat [] 0 size
-    where
-      looper dat accum idx size 
-        | (idx < (length dat)) && ((length nums) == 1) = looper dat upd (idx + 1) size
-        | (idx < (length dat)) && ((length nums) > 1) = looper dat accum (idx + 1) size
-        | (length accum) == 0 = dat
-        | otherwise = accum
-        where 
-          this = dat !! idx
-          c = fst (fst this)
-          r = snd (fst this)
-          nums = snd this
-          upd = lookAtAdj dat (c,r) size (head nums)
-
-          lookAtAdj datt (col,row) size target = updateNew datt rmAdj []
-            where
-              adj = getAdjacent datt (col,row) size
-              rmAdj = removeFromAdjacent adj target
-
-  cn :: Foldable t => t [a] -> [a]
-  cn = concat
-
-  swapper :: [Chunk] -> [Chunk]
-  swapper [] =[]
-  swapper (x:xs) = ((snd (fst x),fst (fst x)), (snd x)) : (swapper xs)
-
-
   clumpSwap :: [Clump] -> [Clump]
-  clumpSwap clumps = looping clumps  0 []
+  clumpSwap clumps = looping clumps 0 []
     where
       looping clump idx accum
-        | (idx < length (clump)) = looping clump (idx+1) (accum ++ [((c,r),d)])
+        | (idx < length (clump)) = looping clump (idx + 1) (accum ++ [((c,r),d)])
         | otherwise = accum
         where this = clump!!idx 
               r = fst (fst this)
               c = snd (fst this)
               d = snd this
 
-
-  fseq :: [[N]] -> Size -> IO [[N]]
-  fseq nums size = do 
+  sequenceCleaner :: [[N]] -> Size -> IO [[N]]
+  sequenceCleaner nums size = do 
     let quence = nums
     let slen = length quence
     passed <- parsing quence slen 0 [] size
     return passed
     where 
-          parsing :: [[N]] -> Len -> Idx -> [[N]] -> Size -> IO [[N]] 
+          parsing :: [[N]] -> Len -> I -> [[N]] -> Size -> IO [[N]] 
           parsing sq slen idx accum dimen = do
             if (idx < slen) 
               then do
+                --pl ["len sq", shl sq,"i",sh idx]
                 let this = sq !! idx
                     chunked = chunkUp dimen this
                     chunkedcols = transpose chunked
@@ -277,9 +629,8 @@
             where 
               checkchunks cr cc cidx = do
                 if (cidx < length cr)
-                 
                   then do
-                    --ps (cn [s (length cr)," ", s (length cc), " ", s cidx ])
+                    --pl ["cc len", shl cc,"cr len",shl cr, "cidx", sh cidx]
                     let thisrow = cr !! cidx
                         thiscol = cc !! cidx
                         nubbedrow = nub thisrow
@@ -297,193 +648,10 @@
                   else do 
                     return False
 
-  initGrid :: Idx -> [Chunk] -> Row -> Row
-  initGrid  idx dat accum
-    | (idx < gLen) && (numLen == 1) = initGrid (idx + 1) dat (accum ++ [fxInt])
-    | (idx < gLen) && (numLen > 1) = initGrid  (idx + 1) dat (accum ++ [pNums])
-    | otherwise = accum
-    where thisDat = dat !! idx
-          row = snd $ fst thisDat
-          col = fst $ fst thisDat
-          nums = snd thisDat
-          pNums = P (nums)
-          numLen = length nums
-          gLen = length dat
-          fxInt = F (head nums)
-           
-  dispFullGrid :: Grid -> Size -> String
-  dispFullGrid grid size =  unlines (map (unwords . map showCell) grid)
-    where
-      showCell (F x)
-        | size == 4 = "[" ++ show x ++ "   ]"
-        | size == 5 = "[" ++ show x ++ "    ]"
-        | size == 6 = "[" ++ show x ++ "     ]"
-      showCell (P xs) = (++ "]") . foldl' (\acc x -> acc ++(if x `elem` xs then show x else " ")) "[" $ [1..size]
-  
-  
-  weedOut :: [Cell] -> Maybe [Cell]
-  weedOut cells = traverse checkSpots cells
-    where constants = [lone | F lone <- cells]
-          checkSpots lone = Just lone
-          checkSpots (P group)
-            | null ldiv = Nothing
-            | len == 1 = Just (F (head group))
-            | len > 1 = Just (P group)
-            where ldiv = group \\ constants
-                  len = length ldiv
- 
-  isFinal :: Cell -> Bool
-  isFinal (F _) = True
-  isFinal _ = False
-
-  isPoten :: Cell -> Bool
-  isPoten (P _) = True
-  isPoten _ = False
-
-  dispGrid :: Grid -> String
-  dispGrid = unlines . map (unwords . map showCell)
-    where showCell (F x) = show x
-          showCell _ = "-"
-
-  getAdjacent ::  [Chunk] -> Pair -> Size -> [Chunk]
-  getAdjacent dat (c, r)  d
-    | equalPairs (c,r) (0,0) = [below, right]
-    | equalPairs (c,r) (0,(d - 1)) = [above, right]
-    | equalPairs (c,r) ((d - 1),0) = [below, left]
-    | equalPairs (c,r) ((d - 1),(d - 1)) = [above, left]
-    | ((c == (d-1)) && noExtRow)  = [above, below, left]
-    | ((c == 0) && noExtRow) = [above, below, right]
-    | ((r == (d - 1)) && noExtCol)  = [above, left, right]
-    | ((r == 0) && noExtCol) = [below, left, right]
-    | otherwise = [above, below, left, right]
-    where right = according dat ((c+1), r)
-          left = according dat ((c-1), r)
-          below = according dat (c, (r+1))
-          above = according dat (c, (r-1))
-          noExtRow = ((r /= 0) && (r /= (d - 1)))
-          noExtCol = ((c /= 0) && (c /= (d - 1)))
-
-  removeFromAdjacent :: [Chunk] -> Target -> [Chunk]
-  removeFromAdjacent dat target = lUpd ++ shortGuys
-      where longerVals = filter ((> 1) . length . snd) dat -- ensure list with 1 item does not have val removed
-            shortGuys = filter ((== 1) . length . snd) dat
-            lCoord = fst (unzip longerVals)
-            lVal = snd (unzip longerVals)
-            filt = map (filter (/= target)) lVal
-            lUpd = zip lCoord filt
-
-  updateNew :: [Chunk] -> [Chunk] -> [Chunk] -> [Chunk]
-  updateNew _ [] final = final
-  updateNew initList updated final = updateNew new (tail updated) new
-    where
-      fChunk = (head updated)
-      fElem = fst fChunk
-      pidx = indexOfPair fElem initList 0
-      spl = splitAt (pidx) initList
-      new = (fst spl) ++ [fChunk] ++ (tail (snd spl))
-
-  mkEmpty :: Size -> Count -> [[N]]
-  mkEmpty n 0 = []
-  mkEmpty n count = [(take n [0,0..])] ++ mkEmpty n (count - 1)
-
-  bigLineTime :: Show a => [[a]] -> String 
-  bigLineTime line = concat (map lineTime line)
-
-  lineTime :: Show a => [a] -> String
-  lineTime line = ((s line) ++ "\n\n")
-
-  noInnerDupes :: [[N]] -> Bool
-  noInnerDupes [] = True
-  noInnerDupes list
-    | (length chker) /= (length this) = False
-    | otherwise = noInnerDupes shorter
-    where this = head list
-          chker = nub this
-          shorter = tail list
-           
-  smush :: [[[N]]] -> Idx -> [[N]] -> [[N]]
-  smush grid idx accum
-    | idx < (length grid) = smush grid (idx + 1) (accum ++ [tmpCon])
-    | otherwise = accum
-    where tmp  = grid !! idx
-          tmpCon = concat tmp
-
-  rearrange :: [[N]] -> Idx -> [[N]] -> [[N]]
-  rearrange [] idx accum = accum
-  rearrange rows idx accum
-    | idx < (length rows) = rearrange rows (idx+1) (accum ++ [taken])
-    | idx == (length rows) = accum ++ [(map (last) rows)]
-    | otherwise = accum
-    where taken = (map (!! idx) rows)
-
-  blah :: [Char] -> [Char]
-  blah line = (iinsert 111 ' ' (iinsert 110 '\n' line))
-  
-  ss :: (Ord a , Show a) => [a] -> [Char]
-  ss list = s (sort list)
-
-  s :: (Show a) => a -> [Char]
-  s item = show item
-
-  ps :: String -> IO ()
-  ps str = putStrLn str
-
-  iinsert :: N -> a -> [a] -> [a]
-  iinsert n y xs = countdown n xs where
-    countdown 0 xs = y:countdown n xs -- reset to original n
-    countdown _ [] = []
-    countdown m (x:xs) = x:countdown (m-1) xs
-
-  according :: [Chunk] -> Pair -> Chunk
-  according dat pair = dat !! idx
-    where idx = indexOfPair pair dat 0
-
-  allSameLength :: [[a]] -> Bool
-  allSameLength []     = True
-  allSameLength (noggin : body) = all (\inner -> length inner == length noggin) body
-
   equalPairs :: Pair -> Pair -> Bool
   equalPairs (fstCol, fstRow) (sndCol, sndRow) = ((fstCol == sndCol) && (fstRow == sndRow))
 
-  process :: [Flne] -> Idx -> Count -> Size -> [(Mark, N)] -> IO [(Mark, N)]
-  process line idx count size coords = do
-    if count == 0
-      then return coords
-      else do
-        let thisLn = (line !! idx)
-            potenVals = findVals thisLn size
-            target = getCageTarget thisLn
-        potPairs <- possiblePairs (words thisLn) potenVals target
-        let pairs = sort (nub (potPairs))
-        ps ( "cage: " ++ (s (head thisLn)) ++ " op: " ++ (s (last thisLn)) ++
-                   " val: " ++ (s target) ++ " combos: " ++ (s potenVals))
-        process line (idx + 1) (count - 1) size (coords ++ pairs)
-
-
-  process2 :: [Flne] -> Idx -> Count -> Size -> [(Mark, [[N]])] -> IO [(Mark, [[N]])]
-  process2 line idx count size coords = do
-    if count == 0
-      then return coords
-      else do
-        let thisLn = (line !! idx)
-            potenVals = findVals thisLn size
-            target = getCageTarget thisLn
-            worded = (words thisLn)
-        potPairs <- possiblePairs worded potenVals target
-        --ps $ s 
-        
-        let chk = fst (unzip potPairs)
-            noSize = tail worded
-            sizeOnly = read (head worded) :: N
-            noEnd = if (sizeOnly == 1) then init noSize else init (init noSize)
-            otherway = swapname noEnd
-            zipped = customZip otherway potenVals
-        ps $ s (length noEnd)
-        --ps $ s noEnd
-    
-        process2 line (idx + 1) (count - 1) size (coords ++ zipped)
-
-  customZip :: [Mark] -> [[N]] -> [(Mark, [[N]])]
+  customZip :: [Pos] -> [[N]] -> [(Pos, [[N]])]
   customZip mks nums = for mks nums
     where
       for marks [] = []
@@ -492,8 +660,7 @@
       for marks vals  = [(thisMk, vals)] ++ (for (tail marks) vals)
         where thisMk = head marks
              
-  
-  swapname :: [Mark] -> [Mark]
+  swapname :: [Pos] -> [Pos]
   swapname [] = []
   swapname info = [new] ++ swapname (tail info)
     where this = head info
@@ -501,8 +668,7 @@
           sp = last this
           new = [sp]++[fp]
 
-
-  customUnzip :: [(Mark, [[N]])] -> ( [Mark], [[[N]]] ) 
+  customUnzip :: [(Pos, [[N]])] -> ( [Pos], [[[N]]] ) 
   customUnzip dat = (newmks, newnums)
     where newmks = formks dat
           newnums = stuff dat
@@ -519,12 +685,11 @@
             where this = head info
                   mks = fst this
 
-
-
-  possiblePairs :: [Mark] -> [[N]] -> Target -> IO [(Mark, N)]
+  possiblePairs :: [Pos] -> [[N]] -> Target -> IO [(Pos, N)]
   possiblePairs str vals target = do
     let size = (read (head str)) :: N
     if size == 1
+      
       then return [((str !! 1), target)]
       else do
         coordPairs <- outerPairer (permutations (init (init (tail str)))) vals [] 0
@@ -564,18 +729,20 @@
 
   doAdd :: String -> Size -> [[N]]
   doAdd chars maxNum
-    | cage > 3 = helper (findSubsets maxNum (cage)) [] (getCageTarget chars) 0
-    | otherwise = helper (findSubsets maxNum cage) [] (getCageTarget chars) 0
+    | cage > 3 = helper subsets [] cageTarget 0
+    | otherwise = helper subsets [] cageTarget 0
     where cage = (digitToInt (head (filter isDigit chars)))
-          ----------------------------------------------------------------------------
-          helper [] accum target idx = accum
-          helper list accum target idx
-            | (li list) == idx = accum
-            | ((sum (list !! idx)) == target) && ((li list) /= idx) = 
-                  helper list (accum ++ [(list !! idx)]) target (idx + 1)
-            | ((sum (list !! idx)) /= target) && ((li list) /= idx) = 
-                  helper list accum target (idx + 1)
+          cageTarget = getCageTarget chars
+          subsets = findSubsets maxNum cage
+          ---------------------------------------------------------------------------------
+          helper [] accum target i = accum
+          helper list accum target i
+            | (li list) == i = accum
+            | (thisSum == target) && ((li list) /= i) = helper list (accum ++ [(list !! i)]) target (i + 1)
+            | (thisSum /= target) && ((li list) /= i) = helper list accum target (i + 1)
+            where thisSum = sum (list !! i)
 
+  
   findSubsets :: Size -> Size -> [[N]]
   findSubsets maxNum cageSize = sort (uniqLists (subGen cageSize legal) 0)
     where legal = repConcat (legalNums maxNum) cageSize
@@ -591,30 +758,29 @@
             | times > 3 = sort (concat (replicate (times - 2) list))
             | otherwise = sort (concat (replicate times list))
 
-  indexOf :: Eq a => a -> [a] -> Idx -> Idx
-  indexOf item arr idx
+  basicIndexOf :: Eq a => a -> [a] -> I -> I
+  basicIndexOf item arr idx
     | item == (arr !! idx) = idx
-    | item /= (arr !! idx) = indexOf item arr (idx + 1)
+    | item /= (arr !! idx) = basicIndexOf item arr (idx + 1)
     | otherwise = -1
 
-  indexOfPair :: Eq a => (a, a) -> [((a, a), [a])] -> Idx -> Idx
-  indexOfPair item arr idx
+  pairIndex :: Eq a => (a, a) -> [((a, a), [a])] -> I -> I
+  pairIndex item arr idx
     | ((length arr) > idx) && (item == thisPair) = idx
     | item == thisPair = idx
-    | item /= thisPair = indexOfPair item arr (idx + 1)
+    | item /= thisPair = pairIndex item arr (idx + 1)
     | otherwise =   -1
     where thisPair = (fst (arr !! idx)) 
 
-  indexOfClumpPair :: Eq a => (a, a) -> [((a, a), [[a]])] -> Idx -> Idx
-  indexOfClumpPair item arr idx
+  clumpPairIndex :: Eq a => (a, a) -> [((a, a), [[a]])] -> I -> I
+  clumpPairIndex item arr idx
     | ((length arr) > idx) && (item == thisPair) = idx
     | item == thisPair = idx
-    | item /= thisPair = indexOfClumpPair item arr (idx + 1)
+    | item /= thisPair = clumpPairIndex item arr (idx + 1)
     | otherwise =   -1
     where thisPair = (fst (arr !! idx)) 
-           
-           
-  getCageTarget :: Flne -> Target
+               
+  getCageTarget :: String -> Target
   getCageTarget str
     | cageSze == 1 = noOper
     | str == "" = 0
@@ -624,33 +790,30 @@
           cageSze = read (head wList) :: Target 
           target = read (last (init wList)) :: Target
 
-  uniqLists :: [[N]] -> Idx -> [[N]]
+  uniqLists :: [[N]] -> I -> [[N]]
   uniqLists [] idx = []
   uniqLists list idx
     | idx < (li list) = uniqLists ([tmpList] ++ (filter (/= tmpList) list)) (idx + 1)
     | otherwise = list
     where tmpList = (list !! idx)
 
-  --groupValues :: [(Mark, N)] -> [(Mark, [N])]
-  
-
-  chunkUp :: Show a => Idx -> [a] -> [[a]]
+  chunkUp :: Show a => I -> [a] -> [[a]]
   chunkUp _ [] = []
   chunkUp count ns =
     let (os, ps) = splitAt count ns
       in os : chunkUp count ps
 
-  dropAt :: [a] -> Idx -> [a]
+  dropAt :: [a] -> I -> [a]
   dropAt list idx = take idx list ++ drop (idx + 1) list
 
   li :: [a] -> N
   li str = (length str) - 1
 
-  form :: (Read a, Read b, Show a, Show b) => Len -> Count -> [(a, b)] -> String -> String
+  form :: (Read a, Read b, Show a, Show b) => Len -> C -> [(a, b)] -> String -> String
   form len flag [] accum = accum
   form len flag pairs accum = formed
-    where coord = s (fst (head pairs))
-          num = s (snd (head pairs))
+    where coord = show (fst (head pairs))
+          num = show (snd (head pairs))
           out = concat [accum, coord, " --> ", num, (xsp (length num)) ,"  ", (fst $ es flag) ]
           cut = drop 1 pairs
           formed = form len (snd $ es flag) cut out
@@ -658,55 +821,67 @@
           es cnt = ("  ", (cnt - 1))
           xsp sze = take (((len+1) - (sze)) + len) [' ',' '..]
 
-  formGrid :: [[[N]]] -> Idx -> String -> String
-  formGrid grid idx accum
-    | ((li grid) + 1) == idx = accum ++ "\n"
-    | otherwise = formGrid grid (idx + 1) (accum ++ (s (grid !! idx)) ++ "\n")
-
-  listifyGrid :: [(a, [N])] -> Idx -> [[N]] -> [[N]]
-  listifyGrid coordVals idx accum
+  makeIntoList :: [(a, [N])] -> I -> [[N]] -> [[N]]
+  makeIntoList coordVals idx accum
     | (li coordVals) == idx = accum ++ vals
-    | otherwise = listifyGrid coordVals (idx + 1) (accum ++ vals)
+    | otherwise = makeIntoList coordVals (idx + 1) (accum ++ vals)
     where
       vals = [snd (coordVals !! idx)]
 
-  findVals :: Flne -> Size -> [[N]]
-  findVals list size
-    | (last list) == '-' = doSub list size
-    | (last list) == '+' = doAdd list size
+  findVals :: String -> Size -> [[N]]
+  findVals list cageSize
+    | (last list) == '-' = doSub list cageSize
+    | (last list) == '+' = doAdd list cageSize
     | otherwise = [[(digitToInt (last list))]]
 
-  colRowPair :: (Mark, [N]) -> Chunk
-  colRowPair coords = ((numCol, irow), (snd coords))
-    where irow = ((read [(fst coords) !! 1]) - 1)
-          numCol = ((indexOf (head (fst coords)) colNames 0))
 
-  rowColPair :: (Mark, [N]) -> Chunk
-  rowColPair coords = ((irow, numCol), (snd coords))
-    where irow = ((read [(fst coords) !! 1]) - 1)
-          numCol = ((indexOf (head (fst coords)) colNames 0))
-
-  rowColClump :: (Mark, [[N]]) -> ((N,N), [[N]])
+  rowColClump :: (Pos, [[N]]) -> ((N,N), [[N]])
   rowColClump clump = ((irow, numCol), (snd clump))
     where point = (fst clump)
           ir = digitToInt (head point)
           irow = (ir - 1)
-          numCol = (indexOf (last point) colNames 0)
+          numCol = (basicIndexOf (last point) colNames 0)
 
-  type Count = Int
-  type Idx = Int
-  type Len = Int
+  fixedGrid :: [[[N]]] -> Size -> [[N]]
+  fixedGrid values size = chunkUp size (concat (concat (solidify values)))
+    where
+    solidify :: [[[N]]] -> [[[N]]]
+    solidify [] = []
+    solidify grid = [toAppend] ++ (solidify (tail grid))
+      where this = head grid
+            single = head this  
+            toAppend = checkingLine this
+            checkingLine :: [[N]] -> [[N]] 
+            checkingLine [] = []
+            checkingLine line = [newLine] ++ (checkingLine (tail line))
+              where thisLine = head line
+                    newLine = eachPossible thisLine
+                    eachPossible :: [N] -> [N]
+                    eachPossible [] = []
+                    eachPossible chunk 
+                      | ((length chunk) == 1) = chunk
+                      | otherwise = [0]
 
-  type Size = Int
-
-  type N = Int
-
-
-
-  type Step = Int
-  type Target = Int
-
-
-  type Flne = String
-  type Mark = String
-  
+  csep :: String -> [String] -> String
+  csep sep [] = []
+  csep sep arr = (head arr) ++ sep ++ csp (tail arr)
+  csp :: [String] -> String
+  csp [] = []
+  csp arr = (head arr) ++ " " ++ csp (tail arr)
+  cnl :: [String] -> String
+  cnl [] = []
+  cnl arr = (head arr) ++ "\n" ++ cnl (tail arr)
+  sa :: Show a => [a] -> [String]
+  sa arr = map show arr 
+  pl :: [String] -> IO ()
+  pl arr = putStrLn (csp arr)
+  prl :: Show a => [a] -> IO ()
+  prl arr = pl (sa arr)
+  pnl :: [String] -> IO ()
+  pnl arr = putStrLn (cnl arr)
+  prnl :: Show a => [a] -> IO ()
+  prnl arr = pnl (sa arr)
+  shl :: [a] -> String
+  shl arr = show (length arr)
+  pls :: String -> [String] -> IO ()
+  pls sep arr = putStrLn (csep sep arr)
